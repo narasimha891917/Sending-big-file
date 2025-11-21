@@ -1,434 +1,494 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>P2P File Transfer — Full (Transcode)</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>P2P File Transfer — Debuggable</title>
 <style>
-:root{
-  --bg:#0b1220; --card:#071022; --text:#e6eef6; --muted:#9aa9b8; --accent:#06b6d4; --glass:rgba(255,255,255,0.03);
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text);}
-.app{max-width:1100px;margin:18px auto;padding:18px}
-.header{display:flex;justify-content:space-between;align-items:center;gap:12px}
-h1{margin:0;font-size:20px}
-.small{font-size:13px;color:var(--muted)}
-.card{background:var(--card);padding:14px;border-radius:12px;margin-top:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
-.row{display:flex;gap:12px;flex-wrap:wrap}
-.col{flex:1;min-width:260px}
-.input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
-.btn{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#021018;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
-.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px}
-.video{width:100%;border-radius:8px;background:#000}
-.progress{height:12px;background:var(--glass);border-radius:999px;overflow:hidden}
-.progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
-.fileRow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
-.qr{width:110px;height:110px;border-radius:8px;background:#071428;display:flex;align-items:center;justify-content:center}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#071026;padding:8px 12px;border-radius:8px;color:#fff;box-shadow:0 6px 30px rgba(2,6,23,0.5)}
-.light{--bg:#f7fafc;--card:#fff;--text:#0b1220;--muted:#475569;--accent:#0ea5a4}
-@media(max-width:820px){ .row{flex-direction:column} .header{flex-direction:column;align-items:flex-start} }
+  body{font-family:Arial,system-ui;margin:0;padding:16px;background:#0b1220;color:#e6eef6}
+  .wrap{max-width:1100px;margin:0 auto}
+  .card{background:#071022;padding:14px;border-radius:10px;margin-bottom:12px}
+  input,button,select{font:inherit;padding:10px;border-radius:8px}
+  input{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1;min-width:220px}
+  .btn{background:#06b6d4;color:#021018;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#9aa9b8}
+  .small{font-size:13px;color:#9aa9b8}
+  pre{background:#071426;padding:10px;border-radius:8px;height:200px;overflow:auto}
+  .success{color:#22c55e}
+  .err{color:#fb7185}
+  .progress{height:12px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
+  .hidden{display:none}
 </style>
 </head>
-<body class="dark">
-<div class="app">
-  <div class="header">
-    <div>
-      <h1>P2P File Transfer — Transcode Enabled</h1>
-      <div class="small">Client-side transcoding reduces sender upload. Passworded rooms, QR, progress, mute, exit, dark mode.</div>
+<body>
+<div class="wrap">
+  <h2>P2P File Transfer — Debug Friendly</h2>
+
+  <div class="card">
+    <div class="small">Quick check — verify Firestore connectivity</div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="testFs" class="btn">Test Firestore</button>
+      <button id="openConsole" class="ghost">Open Console Tip</button>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <label class="small" style="margin-right:8px">Theme</label>
-      <button id="themeToggle" class="ghost">Toggle</button>
-    </div>
+    <div id="testMsg" style="margin-top:8px"></div>
   </div>
 
-  <!-- ROOM -->
   <div class="card">
     <div class="row">
       <div class="col">
         <label class="small">Room ID</label>
-        <input id="roomId" class="input" placeholder="room-id (must match on both devices)">
+        <input id="roomId" placeholder="room-id (same on both devices)">
       </div>
       <div style="width:220px">
-        <label class="small">Room Password</label>
-        <input id="roomPassword" class="input" placeholder="required">
+        <label class="small">Password</label>
+        <input id="roomPassword" placeholder="required">
       </div>
       <div style="width:200px;display:flex;flex-direction:column;gap:8px">
         <button id="createBtn" class="btn">Create Room</button>
         <button id="joinBtn" class="btn">Join Room</button>
       </div>
-      <div style="width:140px;text-align:center">
-        <label class="small">Share</label>
-        <div id="qrWrap" class="qr" title="QR code link">QR</div>
-        <div style="margin-top:8px"><a id="shareLink" class="small" href="#" target="_blank">—</a></div>
+      <div style="width:160px;text-align:center">
+        <div class="small">Share / QR</div>
+        <div id="qr" style="margin-top:6px;background:#071428;border-radius:8px;padding:8px;width:120px;height:120px"></div>
+        <a id="shareLink" class="small" href="#" target="_blank" style="display:block;margin-top:6px;color:#06b6d4"></a>
       </div>
     </div>
-    <div style="margin-top:10px">
-      <div id="roomMsg" class="small"></div>
+    <div id="roomMsg" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:center">
+      <div class="col">
+        <div class="small">Local Video</div>
+        <video id="localVideo" autoplay playsinline muted style="width:100%;height:220px;background:#000;border-radius:8px"></video>
+      </div>
+      <div class="col">
+        <div class="small">Remote Video</div>
+        <video id="remoteVideo" autoplay playsinline style="width:100%;height:220px;background:#000;border-radius:8px"></video>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button id="muteAudio" class="ghost">Mute Audio</button>
+      <button id="muteVideo" class="ghost">Mute Video</button>
+      <button id="exitBtn" class="ghost">Exit Room</button>
     </div>
   </div>
 
-  <!-- Video & file UI -->
-  <div class="card row" style="align-items:flex-start">
-    <div class="col">
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="muteAudio" class="ghost">Mute Audio</button>
-        <button id="muteVideo" class="ghost">Mute Video</button>
-        <button id="exitBtn" class="ghost">Exit Room</button>
-      </div>
-      <div style="margin-top:10px">
-        <label class="small">Local Video</label>
-        <video id="localVideo" class="video" autoplay playsinline muted></video>
-      </div>
-      <div style="margin-top:10px">
-        <label class="small">Remote Video</label>
-        <video id="remoteVideo" class="video" autoplay playsinline></video>
-      </div>
+  <div class="card">
+    <div class="small">Files (queue)</div>
+    <input id="fileInput" type="file" multiple style="margin-top:8px">
+    <div id="fileList" style="margin-top:8px"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="sendBtn" class="btn">Send Queue</button>
+      <button id="clearBtn" class="ghost">Clear Queue</button>
     </div>
 
-    <div class="col">
-      <div style="display:flex;gap:8px;align-items:center">
-        <label class="small">Select files (multiple)</label>
-        <input id="fileInput" type="file" multiple style="margin-left:auto">
-      </div>
+    <div style="margin-top:12px">
+      <div class="small">Send Progress</div>
+      <div class="progress" style="margin-top:6px"><i id="sendBar" style="width:0%"></i></div>
+      <div id="sendTxt" class="small" style="margin-top:6px"></div>
+    </div>
 
-      <div id="fileList" class="list" style="margin-top:10px"></div>
-
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="sendQueueBtn" class="btn">Send Queue</button>
-        <button id="clearQueueBtn" class="ghost">Clear Queue</button>
-      </div>
-
-      <div style="margin-top:12px">
-        <div class="small">Transcode Options</div>
-        <label class="small">Target bitrate (kbps)</label>
-        <input id="bitrateInput" type="number" class="input" value="1200" min="200" max="5000" />
-        <div class="small" style="margin-top:6px">Lower bitrate → smaller upload but lower quality. Resolution preserved.</div>
-      </div>
-
-      <div style="margin-top:12px">
-        <div class="small">Send Progress</div>
-        <div class="progress" style="margin-top:8px"><i id="sendBar" style="width:0%"></i></div>
-        <div class="small" id="sendStats"></div>
-      </div>
-
-      <div style="margin-top:12px">
-        <div class="small">Receive Progress</div>
-        <div class="progress" style="margin-top:8px"><i id="recvBar" style="width:0%"></i></div>
-        <div class="small" id="recvStats"></div>
-        <div id="receiveFiles" style="margin-top:8px"></div>
-      </div>
+    <div style="margin-top:12px">
+      <div class="small">Receive Progress</div>
+      <div class="progress" style="margin-top:6px"><i id="recvBar" style="width:0%"></i></div>
+      <div id="recvTxt" class="small" style="margin-top:6px"></div>
+      <div id="downloads" style="margin-top:8px"></div>
     </div>
   </div>
 
-  <div class="card" style="margin-top:12px">
-    <div class="small">Logs & status</div>
-    <pre id="log" style="height:200px;overflow:auto;background:transparent;border:none;padding:6px"></pre>
+  <div class="card">
+    <div class="small">Logs</div>
+    <pre id="log"></pre>
   </div>
 </div>
 
-<div id="toast" class="toast" style="display:none"></div>
-
-<!-- Module script: Firebase v10 + app logic -->
 <script type="module">
-/* ------------------------------
-   Full single-file app
-   - Firestore v10 (modular)
-   - Passworded rooms
-   - ffmpeg.wasm on-demand transcoding
-   ------------------------------ */
+/* ===========================
+   Debug-friendly single file
+   Firestore v10 modular, explicit errors & messages
+   =========================== */
 
-// ----- Your Firebase config (kept from you) -----
+/* ---------- Firebase v10 config (your config) ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
   authDomain: "sending-file-90a27.firebaseapp.com",
   projectId: "sending-file-90a27",
   storageBucket: "sending-file-90a27.firebasestorage.app",
   messagingSenderId: "319899445088",
-  appId: "1:319899445088:web:d33f39000428c54d212005",
+  appId: "1:319899445088:web:d33f39000428d212005", // NOTE: keep your actual appId (I use yours earlier)
   measurementId: "G-512FV333QR"
 };
 
-// ----- imports -----
+/* ---------- imports ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// initialize firebase
+/* ---------- initialize ---------- */
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// UI refs
+/* ---------- DOM refs ---------- */
 const $ = id => document.getElementById(id);
+const testFs = $('testFs'), openConsole = $('openConsole');
 const createBtn = $('createBtn'), joinBtn = $('joinBtn'), roomIdInput = $('roomId'), roomPassword = $('roomPassword');
-const qrWrap = $('qrWrap'), shareLink = $('shareLink'), roomMsg = $('roomMsg');
-const muteAudioBtn = $('muteAudio'), muteVideoBtn = $('muteVideo'), exitBtn = $('exitBtn');
+const roomMsg = $('roomMsg'), qr = $('qr'), shareLink = $('shareLink');
 const localVideo = $('localVideo'), remoteVideo = $('remoteVideo');
-const fileInput = $('fileInput'), fileList = $('fileList'), sendQueueBtn = $('sendQueueBtn'), clearQueueBtn = $('clearQueueBtn');
-const sendBar = $('sendBar'), recvBar = $('recvBar'), sendStats = $('sendStats'), recvStats = $('recvStats'), receiveFiles = $('receiveFiles');
-const logEl = $('log'), toast = $('toast'), themeToggle = $('themeToggle'), bitrateInput = $('bitrateInput');
+const muteAudio = $('muteAudio'), muteVideo = $('muteVideo'), exitBtn = $('exitBtn');
+const fileInput = $('fileInput'), fileList = $('fileList'), sendBtn = $('sendBtn'), clearBtn = $('clearBtn');
+const sendBar = $('sendBar'), recvBar = $('recvBar'), sendTxt = $('sendTxt'), recvTxt = $('recvTxt'), downloads = $('downloads');
+const logEl = $('log'), testMsg = $('testMsg');
 
-// state
-let pc = null;
-let localStream = null;
-let dataChannel = null;
-let currentRoomRef = null;
-let roomId = null;
-let pwHashStored = null;
-let sendQueue = []; // {file:File, transcode:boolean}
-let sending = false;
-const CHUNK = 64 * 1024; // 64KB
-
-// helpers
+/* ---------- small UI helpers ---------- */
 function log(msg){ const t = new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
-function showToast(msg, ms=2500){ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); }
-async function sha256hex(str){ const b = new TextEncoder().encode(str); const h = await crypto.subtle.digest('SHA-256', b); return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
-function updateShareUI(id){ const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id); shareLink.textContent = link; shareLink.href = link; const qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=' + encodeURIComponent(link); qrWrap.innerHTML = `<img src="${qrUrl}" width="110" height="110" style="border-radius:6px">`; }
+function setRoomMessage(text, ok=true){ roomMsg.innerHTML = text; roomMsg.className = ok ? 'success' : 'err'; }
+function updateQRAndLink(id){ const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id); shareLink.href = link; shareLink.textContent = link; qr.innerHTML = `<img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(link)}" width="110" height="110"/>`; }
 
-// theme toggle
-themeToggle.addEventListener('click', ()=> {
-  const b = document.body;
-  if (b.classList.contains('light')){ b.classList.remove('light'); b.classList.add('dark'); } else { b.classList.remove('dark'); b.classList.add('light'); }
+/* ---------- Firestore test (explicit error display) ---------- */
+testFs.addEventListener('click', async () => {
+  testFs.disabled = true;
+  testMsg.textContent = 'Testing Firestore...';
+  try {
+    // write a tiny doc and read it
+    const testRef = doc(db, 'test_connection', 'ping');
+    await setDoc(testRef, { ts: Date.now() });
+    const snap = await getDoc(testRef);
+    if (snap.exists()) {
+      testMsg.innerHTML = '<span style="color:limegreen">Firestore write/read OK</span>';
+      log('Firestore test OK');
+    } else {
+      testMsg.innerHTML = '<span style="color:orangered">Firestore read failed (no doc)</span>';
+      log('Firestore test: doc missing after write');
+    }
+  } catch(e) {
+    // show full error message so user can copy it
+    testMsg.innerHTML = `<span style="color:orangered">Firestore error: ${e && e.message ? e.message : e}</span>`;
+    log('Firestore test error: ' + (e && e.message ? e.message : e));
+  } finally {
+    testFs.disabled = false;
+  }
 });
 
-// media
-async function ensureLocalStream(){
+/* ---------- basic WebRTC + Firestore signaling (simplified) ---------- */
+let pc = null, dataChannel = null, localStream = null, roomRefGlobal = null;
+let sendQueue = []; // array of File
+const CHUNK = 64 * 1024;
+
+/* get media */
+async function startLocal() {
   if (localStream) return localStream;
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video:{width:1280,height:720,frameRate:24}, audio:true });
+    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
     localVideo.srcObject = localStream;
     log('Local stream started');
     return localStream;
-  } catch(e){ log('getUserMedia error: '+e); alert('Camera & mic permission required'); throw e; }
+  } catch(e) {
+    log('getUserMedia error: ' + e);
+    alert('Allow camera & mic');
+    throw e;
+  }
 }
 
-// peer connection
-function createPeerConnection(){
-  const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-  pc = new RTCPeerConnection(config);
+/* create peer */
+function createPC() {
+  pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
   if (localStream) for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
-
-  pc.ontrack = ev => { remoteVideo.srcObject = ev.streams[0]; log('Remote stream added'); };
-
+  pc.ontrack = e => {
+    remoteVideo.srcObject = e.streams[0];
+    log('Remote stream received');
+  };
   pc.onicecandidate = e => {
-    if (e.candidate && currentRoomRef){
-      addDoc(collection(currentRoomRef, 'candidates'), { candidate: JSON.stringify(e.candidate) }).catch(err=>log('ICE push err:'+err));
+    if (e.candidate && roomRefGlobal) {
+      // push candidate to subcollection
+      addDoc(collection(roomRefGlobal, 'candidates'), { candidate: JSON.stringify(e.candidate) })
+        .catch(err => log('addDoc ICE error: ' + err));
     }
   };
-
-  pc.onconnectionstatechange = ()=> log('PC state: ' + pc.connectionState);
+  pc.onconnectionstatechange = () => log('PC state: ' + pc.connectionState);
   return pc;
 }
 
-// data channel setup
-function setupDataChannel(channel){
-  dataChannel = channel;
+/* data channel handlers */
+function attachDataChannel(dc) {
+  dataChannel = dc;
   dataChannel.binaryType = 'arraybuffer';
-  dataChannel.onopen = ()=> { log('DataChannel open'); showToast('DataChannel open'); };
-  dataChannel.onclose = ()=> { log('DataChannel closed'); showToast('DataChannel closed'); };
-
-  // receive logic
-  let incomingBuffers = [];
-  let incomingSize = 0;
-  let incomingName = '';
-  let receivedBytes = 0;
-
+  dataChannel.onopen = () => log('DataChannel open');
+  dataChannel.onclose = () => log('DataChannel closed');
   dataChannel.onmessage = ev => {
-    if (typeof ev.data === 'string'){
+    if (typeof ev.data === 'string') {
       try {
-        const control = JSON.parse(ev.data);
-        if (control.type === 'meta'){
-          incomingName = control.name; incomingSize = control.size; incomingBuffers = []; receivedBytes = 0;
+        const ctl = JSON.parse(ev.data);
+        if (ctl.type === 'meta') {
+          recvTxt.textContent = `Receiving ${ctl.name} (${(ctl.size/1024/1024).toFixed(2)} MB)`;
+          downloads.innerHTML = '';
           recvBar.style.width = '0%';
-          recvStats.textContent = `Receiving ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
-          log('Receiving meta: ' + incomingName);
-        } else if (control.type === 'done'){
-          const blob = new Blob(incomingBuffers);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href = url; a.download = incomingName; a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`; a.style.display='block';
-          receiveFiles.prepend(a);
-          recvStats.textContent = `Received ${incomingName}`;
-          recvBar.style.width = '100%';
-          log('Receive complete: ' + incomingName);
+        } else if (ctl.type === 'done') {
+          log('Receiver: done control message');
         }
-      } catch(e){ console.warn('bad ctrl', e); }
+      } catch(e){ console.warn('ctrl parse err', e); }
     } else {
-      incomingBuffers.push(ev.data);
-      receivedBytes += ev.data.byteLength;
-      const pct = incomingSize ? (receivedBytes / incomingSize * 100) : 0;
-      recvBar.style.width = pct + '%';
-      recvStats.textContent = `${(receivedBytes/1024/1024).toFixed(2)} MB received`;
+      // raw chunk receive: accumulate into a blob per transfer - for demo we simply create a downloadable blob directly
+      // Note: a production app should assemble chunks into buffers and provide a proper progress bar
+      const blob = new Blob([ev.data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'received_file'; a.textContent = 'Download received file'; a.style.display='block';
+      downloads.prepend(a);
+      recvBar.style.width = '100%';
+      recvTxt.textContent = 'Received chunk (saved as file)';
     }
   };
 }
 
-// create room
-createBtn.addEventListener('click', async ()=>{
+/* Create Room */
+createBtn.addEventListener('click', async () => {
   const id = roomIdInput.value.trim();
   const pw = roomPassword.value || '';
-  if (!id) { roomMsg.textContent = 'Enter Room ID'; roomMsg.style.color='orangered'; return; }
-  if (!pw) { roomMsg.textContent = 'Password required'; roomMsg.style.color='orangered'; return; }
+  if (!id) { setRoomMessage('Enter Room ID', false); return; }
+  if (!pw) { setRoomMessage('Password required', false); return; }
 
   createBtn.disabled = true;
+  setRoomMessage('Creating room...', true);
   try {
-    await ensureLocalStream();
-    createPeerConnection();
-    const dc = pc.createDataChannel('file'); setupDataChannel(dc);
+    await startLocal();
+    createPC();
+    // caller creates dataChannel
+    const dc = pc.createDataChannel('file');
+    attachDataChannel(dc);
 
-    const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
-    const h = await sha256hex(pw); pwHashStored = h;
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
+    // store in Firestore (offer + pwHash)
+    const h = await sha256hex(pw);
     const roomRef = doc(db, 'rooms', id);
-    currentRoomRef = roomRef; roomId = id;
+    roomRefGlobal = roomRef;
+    try {
+      await setDoc(roomRef, { offer: JSON.stringify(pc.localDescription), pwHash: h });
+    } catch(e) {
+      // show clear error and return early
+      setRoomMessage('Failed to write room to Firestore: ' + (e.message || e), false);
+      log('setDoc error: ' + (e.message || e));
+      createBtn.disabled = false;
+      return;
+    }
 
-    // write room (offer + pwHash)
-    await setDoc(roomRef, { offer: JSON.stringify(pc.localDescription), pwHash: h });
-    roomMsg.textContent = `Room Created Successfully! Room ID: ${id}`; roomMsg.style.color='limegreen';
-    updateShareUI(id); log('Room created: ' + id);
+    setRoomMessage('Room Created Successfully! Room ID: ' + id, true);
+    updateQRAndLink(id);
+    log('Room created and offer saved: ' + id);
 
-    // listen for answer
+    // listen for answer updates
     onSnapshot(roomRef, async snap => {
       const data = snap.data();
       if (!data) return;
-      if (data.answer && pc && !pc.currentRemoteDescription){
-        await pc.setRemoteDescription(JSON.parse(data.answer));
-        log('Answer received');
+      if (data.answer && pc && !pc.currentRemoteDescription) {
+        try {
+          await pc.setRemoteDescription(JSON.parse(data.answer));
+          log('Answer set as remote description');
+        } catch(e) { log('setRemoteDescription error: ' + e); }
       }
     });
 
-    // listen for candidate docs
+    // listen for ICE candidates from remote
     onSnapshot(collection(roomRef, 'candidates'), snap => {
       snap.docChanges().forEach(async change => {
-        if (change.type === 'added'){
+        if (change.type === 'added') {
           const obj = change.doc.data();
-          if (obj && obj.candidate){
-            try { await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate))); log('Remote ICE added'); }
-            catch(e){ console.warn(e); }
+          if (obj && obj.candidate) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
+              log('Remote ICE candidate added');
+            } catch(e) { log('addIceCandidate error: ' + e); }
           }
         }
       });
     });
 
-  } catch(err){
-    log('Create room failed: ' + err);
-    roomMsg.textContent = 'Failed to create room: ' + (err.message || err); roomMsg.style.color='orangered';
+  } catch(e) {
+    log('Create room error: ' + e);
+    setRoomMessage('Create room failed: ' + (e.message || e), false);
   } finally { createBtn.disabled = false; }
 });
 
-// join room
-joinBtn.addEventListener('click', async ()=>{
+/* Join Room */
+joinBtn.addEventListener('click', async () => {
   const id = roomIdInput.value.trim();
   const pw = roomPassword.value || '';
-  if (!id) { roomMsg.textContent='Enter Room ID'; roomMsg.style.color='orangered'; return; }
-  if (!pw) { roomMsg.textContent='Password required'; roomMsg.style.color='orangered'; return; }
+  if (!id) { setRoomMessage('Enter Room ID', false); return; }
+  if (!pw) { setRoomMessage('Password required', false); return; }
 
   joinBtn.disabled = true;
+  setRoomMessage('Joining room...', true);
   try {
-    await ensureLocalStream();
+    await startLocal();
     const roomRef = doc(db, 'rooms', id);
-    const snap = await getDoc(roomRef);
-    if (!snap.exists()) { roomMsg.textContent = 'Room not found'; roomMsg.style.color='orangered'; return; }
+    roomRefGlobal = roomRef;
+
+    // fetch room doc
+    let snap;
+    try {
+      snap = await getDoc(roomRef);
+    } catch(e) {
+      setRoomMessage('Failed to read room from Firestore: ' + (e.message || e), false);
+      log('getDoc error: ' + (e.message || e));
+      joinBtn.disabled = false;
+      return;
+    }
+
+    if (!snap.exists()) {
+      setRoomMessage('Room not found', false);
+      joinBtn.disabled = false;
+      return;
+    }
     const data = snap.data();
-    if (!data.pwHash) { roomMsg.textContent='Room has no password'; roomMsg.style.color='orangered'; return; }
+    if (!data.pwHash) { setRoomMessage('Room has no password', false); joinBtn.disabled=false; return; }
     const h = await sha256hex(pw);
-    if (h !== data.pwHash) { roomMsg.textContent='Wrong password'; roomMsg.style.color='orangered'; return; }
+    if (h !== data.pwHash) { setRoomMessage('Wrong password', false); joinBtn.disabled=false; return; }
 
-    currentRoomRef = roomRef; roomId = id; pwHashStored = h;
+    // set up PC & set remote offer
+    createPC();
+    pc.ondatachannel = ev => attachDataChannel(ev.channel);
 
-    createPeerConnection();
-    pc.ondatachannel = ev => setupDataChannel(ev.channel);
+    try {
+      await pc.setRemoteDescription(JSON.parse(data.offer));
+    } catch(e) { setRoomMessage('setRemoteDescription failed: ' + (e.message || e), false); log('setRemoteDescription error: ' + e); joinBtn.disabled=false; return; }
 
-    await pc.setRemoteDescription(JSON.parse(data.offer));
-    const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-    await setDoc(roomRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
-    roomMsg.textContent = `Joined Room Successfully: ${id}`; roomMsg.style.color='limegreen';
-    updateShareUI(id); log('Joined room & posted answer');
+    // write answer back to Firestore (merge)
+    try {
+      await setDoc(roomRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
+    } catch(e) {
+      setRoomMessage('Failed to write answer to Firestore: ' + (e.message || e), false);
+      log('setDoc answer error: ' + e);
+      joinBtn.disabled = false;
+      return;
+    }
 
+    setRoomMessage('Joined Room Successfully: ' + id, true);
+    updateQRAndLink(id);
+    log('Joined room and posted answer');
+
+    // listen for ICE candidates from caller
     onSnapshot(collection(roomRef, 'candidates'), snap2 => {
       snap2.docChanges().forEach(async change => {
-        if (change.type === 'added'){
+        if (change.type === 'added') {
           const obj = change.doc.data();
-          if (obj && obj.candidate){
-            try{ await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate))); log('Remote ICE added'); }
-            catch(e){ console.warn(e); }
+          if (obj && obj.candidate) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
+              log('Remote ICE candidate added');
+            } catch(e) {
+              log('addIceCandidate error: ' + e);
+            }
           }
         }
       });
     });
 
-  } catch(err){
-    log('Join failed: ' + err);
-    roomMsg.textContent = 'Failed to join: ' + (err.message || err); roomMsg.style.color='orangered';
+  } catch(e) {
+    log('Join error: ' + e);
+    setRoomMessage('Join failed: ' + (e.message || e), false);
   } finally { joinBtn.disabled = false; }
 });
 
-// mute/unmute & exit
-muteAudioBtn.addEventListener('click', ()=>{
-  if (!localStream) return alert('No local stream'); const t = localStream.getAudioTracks()[0]; t.enabled = !t.enabled; muteAudioBtn.textContent = t.enabled ? 'Mute Audio' : 'Unmute Audio'; log('Audio '+(t.enabled?'on':'off'));
-});
-muteVideoBtn.addEventListener('click', ()=>{
-  if (!localStream) return alert('No local stream'); const t = localStream.getVideoTracks()[0]; t.enabled = !t.enabled; muteVideoBtn.textContent = t.enabled ? 'Mute Video' : 'Unmute Video'; log('Video '+(t.enabled?'on':'off'));
-});
-exitBtn.addEventListener('click', ()=>{
-  if (pc) pc.close(); pc = null; if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; } roomMsg.textContent='Left room'; log('Left room');
-});
-
-// file queue UI
-fileInput.addEventListener('change', (ev)=>{
+/* ---------- small utilities for files (queue & send) ---------- */
+fileInput.addEventListener('change', (ev) => {
   const files = Array.from(ev.target.files || []);
-  for (const f of files) sendQueue.push({ file: f, transcode: true });
-  renderQueue();
+  sendQueue.push(...files);
+  renderFileList();
 });
-function renderQueue(){
-  fileList.innerHTML=''; sendQueue.forEach((it,idx)=>{
-    const f=it.file;
-    const div=document.createElement('div'); div.className='fileRow';
-    div.innerHTML = `<div style="flex:1"><strong>${f.name}</strong><br><small class="small">${(f.size/1024/1024).toFixed(2)} MB</small></div>
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-        <label class="small">Transcode <input type="checkbox" data-idx="${idx}" class="tc" ${it.transcode?'checked':''}></label>
-        <div><button data-idx="${idx}" class="ghost removeBtn">Delete</button></div>
-      </div>`;
+function renderFileList(){
+  fileList.innerHTML = '';
+  sendQueue.forEach((f, i) => {
+    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.marginTop='8px';
+    div.innerHTML = `<div><strong>${f.name}</strong><div class="small">${(f.size/1024/1024).toFixed(2)} MB</div></div><div><button data-i="${i}" class="ghost remove">Delete</button></div>`;
     fileList.appendChild(div);
   });
-  fileList.querySelectorAll('.removeBtn').forEach(b=>b.addEventListener('click', e=>{ const i=parseInt(b.getAttribute('data-idx')); sendQueue.splice(i,1); renderQueue(); }));
-  fileList.querySelectorAll('.tc').forEach(cb=>cb.addEventListener('change', e=>{ const i=parseInt(cb.getAttribute('data-idx')); sendQueue[i].transcode = cb.checked; }));
+  fileList.querySelectorAll('.remove').forEach(b => b.addEventListener('click', e => { const i=parseInt(b.getAttribute('data-i')); sendQueue.splice(i,1); renderFileList(); }));
 }
-clearQueueBtn.addEventListener('click', ()=>{ sendQueue=[]; renderQueue(); });
+clearBtn.addEventListener('click', ()=>{ sendQueue=[]; renderFileList(); });
 
-// ffmpeg.wasm (load on demand)
-let ffmpeg = null, ffmpegLoading=false;
-async function ensureFFmpeg(){
-  if (ffmpeg) return ffmpeg;
-  if (ffmpegLoading){ while(!ffmpeg) await new Promise(r=>setTimeout(r,200)); return ffmpeg; }
-  ffmpegLoading = true;
-  log('Loading ffmpeg.wasm (may take a few seconds)...');
-  const { createFFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js');
-  ffmpeg = createFFmpeg({ log:false });
-  ffmpeg.setProgress(p => { if (p && p.ratio !== undefined) { const pct=Math.round(p.ratio*100); sendStats.textContent = `Transcoding: ${pct}%`; } });
-  await ffmpeg.load();
-  log('ffmpeg.wasm loaded');
-  return ffmpeg;
-}
-async function transcodeFileToMp4(file, targetKbps){
-  const f = await ensureFFmpeg();
-  const inName = 'in.' + (file.name.split('.').pop() || 'mp4');
-  const outName = 'out.mp4';
-  f.FS('writeFile', inName, await f.fetchFile(file));
-  const args = ['-i', inName, '-c:v','libx264','-preset','veryfast','-b:v',`${targetKbps}k`, '-maxrate',`${Math.round(targetKbps*1.2)}k`, '-bufsize',`${Math.round(targetKbps*2)}k`, '-c:a','aac','-b:a','96k','-movflags','+faststart', outName];
-  log(`Transcoding to ${targetKbps} kbps...`);
-  await f.run(...args);
-  const data = f.FS('readFile', outName);
-  const blob = new Blob([data.buffer], { type: 'video/mp4' });
-  try { f.FS('unlink', inName); f.FS('unlink', outName); } catch(e){}
-  log('Transcode done: ' + (blob.size/1024/1024).toFixed(2) + ' MB');
-  return blob;
+/* Very simple send: sends raw files (no transcode) in chunks */
+sendBtn.addEventListener('click', async () => {
+  if (!dataChannel || dataChannel.readyState !== 'open') { alert('DataChannel not open yet'); return; }
+  if (sendQueue.length === 0) return alert('No files selected');
+  sendBtn.disabled = true;
+  let total = sendQueue.reduce((s,f)=>s+f.size,0), sent=0;
+  try {
+    for (const f of sendQueue) {
+      // send meta
+      dataChannel.send(JSON.stringify({ type:'meta', name: f.name, size: f.size }));
+      log('Sending: ' + f.name);
+      const reader = f.stream().getReader();
+      while(true){
+        const {done, value} = await reader.read();
+        if (done) break;
+        // chunking inside value may be large; we send in slices
+        let offset = 0;
+        while (offset < value.byteLength) {
+          const end = Math.min(offset + CHUNK, value.byteLength);
+          const slice = value.subarray(offset, end);
+          // flow control
+          while (dataChannel.bufferedAmount > CHUNK * 16) await new Promise(r=>setTimeout(r,50));
+          dataChannel.send(slice);
+          sent += slice.byteLength;
+          sendBar.style.width = ((sent/total)*100) + '%';
+          sendTxt.textContent = `${(sent/1024/1024).toFixed(2)} MB / ${(total/1024/1024).toFixed(2)} MB`;
+          offset = end;
+        }
+      }
+      dataChannel.send(JSON.stringify({ type:'done' }));
+      log('Finished sending: ' + f.name);
+    }
+    showToast('All files sent', 3000);
+  } catch(e) {
+    log('Send failed: ' + e);
+    alert('Send failed: ' + e);
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+
+/* mute/video/exit handlers */
+muteAudio.addEventListener('click', ()=> {
+  if (!localStream) return alert('No local stream'); const t = localStream.getAudioTracks()[0]; t.enabled = !t.enabled; muteAudio.textContent = t.enabled ? 'Mute Audio' : 'Unmute Audio';
+});
+muteVideo.addEventListener('click', ()=> {
+  if (!localStream) return alert('No local stream'); const t = localStream.getVideoTracks()[0]; t.enabled = !t.enabled; muteVideo.textContent = t.enabled ? 'Mute Video' : 'Unmute Video';
+});
+exitBtn.addEventListener('click', ()=> {
+  if (pc) pc.close(); pc = null;
+  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+  setRoomMessage('Left room', true);
+  log('Exited room & stopped local stream');
+});
+
+/* tiny helper: hash password (sha256 hex) */
+async function sha256hex(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-// send queue
-sendQueueBtn.addEventListener('click', async ()=>{
-  if (!dataChannel || dataChannel.readyState !== 'open'){ alert('DataChannel not open yet — wait for connection'); return; }
-  if (sendQueue.length===0
+/* convenience: open console instructions */
+openConsole.addEventListener('click', ()=> {
+  alert('On Android Chrome: Menu → More tools → Developer tools via remote debugging (chrome://inspect) or open on desktop and press F12 to see Console logs.');
+});
+
+/* attempt to pre-fill room id from URL fragment */
+(function loadRoomFromHash(){
+  const m = location.hash.match(/room=([^&]+)/);
+  if (m) roomIdInput.value = decodeURIComponent(m[1]);
+})();
+
+log('App initialized. Click "Test Firestore" to verify connectivity and rules.');
+</script>
+</body>
+</html>

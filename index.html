@@ -3,67 +3,87 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>P2P File Transfer — Fixed</title>
+<title>P2P File Transfer — Transcode Mode (Option B)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
 <style>
-  :root{--bg:#0b1220;--card:#071022;--text:#e6eef6;--muted:#9aa9b8;--accent:#06b6d4}
-  body{margin:0;font-family:Arial,system-ui;background:var(--bg);color:var(--text);padding:12px}
-  .app{max-width:1000px;margin:0 auto}
-  .card{background:var(--card);padding:14px;border-radius:10px;margin-bottom:12px}
-  input,button{font:inherit;padding:10px;border-radius:8px}
-  input{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
-  .row{display:flex;gap:12px;flex-wrap:wrap}
-  .col{flex:1;min-width:220px}
-  .btn{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#021018;padding:10px 14px;border-radius:10px;cursor:pointer}
-  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px}
-  .small{font-size:13px;color:var(--muted)}
-  pre{background:#071426;padding:10px;border-radius:8px;height:180px;overflow:auto}
-  .success{color:#22c55e}
-  .err{color:#fb7185}
-  .progress{height:12px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
-  .progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
+:root{
+  --bg:#0b1220; --card:#071022; --text:#e6eef6; --muted:#9aa9b8; --accent:#06b6d4;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,system-ui;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+.app{max-width:1100px;margin:18px auto;padding:18px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;font-size:20px}
+.small{font-size:13px;color:var(--muted)}
+.card{background:var(--card);padding:14px;border-radius:12px;margin-top:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:260px}
+.input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+.btn{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#021018;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px}
+.video{width:100%;border-radius:8px;background:#000}
+.progress{height:12px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
+.progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
+.fileRow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+.qr{width:110px;height:110px;border-radius:8px;background:#071428;display:flex;align-items:center;justify-content:center}
+.logs{height:180px;overflow:auto;background:transparent;border:none;padding:6px}
+.toastContainer{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9999}
+@media(max-width:820px){ .row{flex-direction:column} .header{flex-direction:column;align-items:flex-start} }
 </style>
 </head>
 <body>
 <div class="app">
-  <h2>P2P File Transfer — Fixed</h2>
+  <div class="header">
+    <div>
+      <h1>P2P File Transfer — Transcode (Option B)</h1>
+      <div class="small">Transcode before sending to reduce upload. Preserve resolution, lower bitrate. Use passworded rooms.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="themeToggle" class="ghost">Toggle Theme</button>
+    </div>
+  </div>
 
+  <!-- ROOM -->
   <div class="card">
     <div class="row">
       <div class="col">
         <label class="small">Room ID</label>
-        <input id="roomId" placeholder="room-id (must match on both devices)">
+        <input id="roomId" class="input" placeholder="room-id (same on both devices)">
       </div>
       <div style="width:220px">
-        <label class="small">Password</label>
-        <input id="roomPassword" placeholder="required">
+        <label class="small">Room Password</label>
+        <input id="roomPassword" class="input" placeholder="required">
       </div>
       <div style="width:200px;display:flex;flex-direction:column;gap:8px">
         <button id="createBtn" class="btn">Create Room</button>
         <button id="joinBtn" class="btn">Join Room</button>
       </div>
       <div style="width:160px;text-align:center">
-        <div class="small">Share / QR</div>
-        <div id="qr" style="margin-top:6px;background:#071428;border-radius:8px;padding:8px;width:120px;height:120px"></div>
-        <a id="shareLink" class="small" href="#" target="_blank" style="display:block;margin-top:6px;color:var(--accent)"></a>
+        <label class="small">Share / QR</label>
+        <div id="qrWrap" class="qr" title="QR code link">QR</div>
+        <div style="margin-top:8px"><a id="shareLink" class="small" href="#" target="_blank">—</a></div>
       </div>
     </div>
-    <div id="roomMsg" style="margin-top:10px"></div>
+    <div style="margin-top:10px"><div id="roomMsg" class="small"></div></div>
   </div>
 
+  <!-- Video & Controls + File UI -->
   <div class="card row" style="align-items:flex-start">
     <div class="col">
-      <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;align-items:center">
         <button id="muteAudio" class="ghost">Mute Audio</button>
         <button id="muteVideo" class="ghost">Mute Video</button>
         <button id="exitBtn" class="ghost">Exit Room</button>
       </div>
-      <div>
-        <div class="small">Local Video</div>
-        <video id="localVideo" autoplay playsinline muted style="width:100%;height:220px;background:#000;border-radius:8px"></video>
-      </div>
+
       <div style="margin-top:10px">
-        <div class="small">Remote Video</div>
-        <video id="remoteVideo" autoplay playsinline style="width:100%;height:220px;background:#000;border-radius:8px"></video>
+        <label class="small">Local Video</label>
+        <video id="localVideo" class="video" autoplay playsinline muted></video>
+      </div>
+
+      <div style="margin-top:10px">
+        <label class="small">Remote Video</label>
+        <video id="remoteVideo" class="video" autoplay playsinline></video>
       </div>
     </div>
 
@@ -78,6 +98,13 @@
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="sendQueueBtn" class="btn">Send Queue</button>
         <button id="clearQueueBtn" class="ghost">Clear Queue</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Transcode Options (per-file checkbox)</div>
+        <label class="small">Target bitrate (kbps)</label>
+        <input id="bitrateInput" type="number" class="input" value="1200" min="200" max="5000" />
+        <div class="small" style="margin-top:6px">Lower bitrate → smaller upload. Resolution is kept.</div>
       </div>
 
       <div style="margin-top:12px">
@@ -96,16 +123,20 @@
   </div>
 
   <div class="card">
-    <div class="small">Logs & status</div>
-    <pre id="log"></pre>
+    <div class="small">Logs</div>
+    <pre id="log" class="logs"></pre>
   </div>
 </div>
 
-<!-- Toast container (used by showToast) -->
-<div id="toastContainer" style="position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9999"></div>
+<div class="toastContainer" id="toastContainer"></div>
 
-<!-- Firebase v10 + app code -->
 <script type="module">
+/* ---------------------------
+  P2P File Transfer — Option B
+  Firestore v10 + client-side transcoding (ffmpeg.wasm)
+  Single-page HTML
+----------------------------*/
+
 /* ---------------- FIREBASE CONFIG ---------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
@@ -123,45 +154,47 @@ import {
   getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* ---------------- INIT FIREBASE ---------------- */
+/* ---------------- INIT ---------------- */
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* ---------------- UI HELPERS ---------------- */
+/* ---------------- HELPERS & UI ---------------- */
 const $ = id => document.getElementById(id);
 const logEl = $('log');
-function log(msg){ const t=new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
+function log(msg){ const t = new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
 
-/* showToast (fixed) */
-function showToast(message, color = '#22c55e') {
+/* showToast: simple visual message */
+function showToast(message, type = 'success'){
   const container = document.getElementById('toastContainer');
   const el = document.createElement('div');
   el.textContent = message;
-  el.style.background = color;
+  el.style.background = type === 'error' ? '#ef4444' : '#16a34a';
   el.style.color = '#fff';
   el.style.padding = '10px 14px';
-  el.style.borderRadius = '8px';
   el.style.marginTop = '8px';
+  el.style.borderRadius = '8px';
   el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.4)';
   el.style.opacity = '0';
   el.style.transition = 'opacity .25s';
   container.appendChild(el);
   requestAnimationFrame(()=> el.style.opacity = '1');
-  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
+  setTimeout(()=> { el.style.opacity = '0'; setTimeout(()=> el.remove(), 300); }, 3000);
 }
 
-/* small UI text message */
+/* small message area for room */
 function setRoomMessage(text, ok = true){
   const el = $('roomMsg');
   el.textContent = text;
   el.style.color = ok ? '#22c55e' : '#fb7185';
 }
 
-/* update QR/link */
+/* update share UI (QR + link) */
 function updateShareUI(id){
   const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id);
-  $('shareLink').textContent = link; $('shareLink').href = link;
-  $('qr').innerHTML = `<img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(link)}" width="110" height="110" style="border-radius:6px">`;
+  $('shareLink').textContent = link;
+  $('shareLink').href = link;
+  const qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=' + encodeURIComponent(link);
+  $('qrWrap').innerHTML = `<img src="${qrUrl}" width="110" height="110" style="border-radius:6px">`;
 }
 
 /* ---------------- STATE ---------------- */
@@ -171,58 +204,58 @@ let localStream = null;
 let currentRoomRef = null;
 let roomId = null;
 let pwHashStored = null;
-let bufferedRemoteCandidates = []; // buffer ICE candidates until remoteDescription set
+let bufferedRemoteCandidates = [];
+let bufferedLocalCandidatesCollectionUnsub = null;
 
 const CHUNK = 64 * 1024;
-let sendQueue = [];
+let sendQueue = []; // {file, transcode:boolean}
 
-/* ---------------- SHA256 helper ---------------- */
+/* ---------- SHA-256 hex helper ---------- */
 async function sha256hex(str){
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  const b = new TextEncoder().encode(str);
+  const h = await crypto.subtle.digest('SHA-256', b);
+  return Array.from(new Uint8Array(h)).map(x => x.toString(16).padStart(2,'0')).join('');
 }
 
-/* ---------------- MEDIA ---------------- */
+/* ---------- Local media ---------- */
 async function ensureLocalStream(){
   if (localStream) return localStream;
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video:{width:640,height:360,frameRate:15}, audio:true });
+    localStream = await navigator.mediaDevices.getUserMedia({ video:{width:640,height:360,frameRate:24}, audio:true });
     $('localVideo').srcObject = localStream;
-    log('Local media obtained');
+    log('Local stream started');
     return localStream;
   } catch(e){
     log('getUserMedia error: ' + e);
-    showToast('Camera/mic permission required', '#fb7185');
+    showToast('Camera/mic permission required', 'error');
     throw e;
   }
 }
 
-/* ---------------- PEER CONNECTION & DATACHANNEL ---------------- */
+/* ---------- Peer connection ---------- */
 function createPeerConnection(){
   const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
   pc = new RTCPeerConnection(config);
 
-  if (localStream) {
+  if (localStream){
     for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
   }
 
-  pc.ontrack = (ev) => {
+  pc.ontrack = ev => {
     $('remoteVideo').srcObject = ev.streams[0];
     log('Remote track received');
   };
 
-  // when our PC has ICE candidate, push to Firestore
   pc.onicecandidate = e => {
     if (e.candidate && currentRoomRef) {
+      // push candidate doc to subcollection
       addDoc(collection(currentRoomRef, 'candidates'), { candidate: JSON.stringify(e.candidate) })
         .catch(err => log('Failed to push ICE candidate: ' + err));
     }
   };
 
-  pc.onconnectionstatechange = () => log('Connection state: ' + pc.connectionState);
+  pc.onconnectionstatechange = () => log('PC state: ' + pc.connectionState);
 
-  // when remote creates data channel (answerer gets it)
   pc.ondatachannel = ev => {
     log('ondatachannel received');
     setupDataChannel(ev.channel);
@@ -231,41 +264,42 @@ function createPeerConnection(){
   return pc;
 }
 
-function setupDataChannel(dc){
-  dataChannel = dc;
+/* ---------- DataChannel ---------- */
+function setupDataChannel(ch){
+  dataChannel = ch;
   dataChannel.binaryType = 'arraybuffer';
   dataChannel.onopen = () => { log('DataChannel open'); showToast('DataChannel open'); };
-  dataChannel.onclose = () => { log('DataChannel closed'); showToast('DataChannel closed', '#fb7185'); };
+  dataChannel.onclose = () => { log('DataChannel closed'); showToast('DataChannel closed', 'error'); };
 
-  // receiving logic
+  // receive assembly
   let incomingBuffers = [];
   let incomingSize = 0;
   let incomingName = '';
   let receivedBytes = 0;
 
   dataChannel.onmessage = e => {
-    if (typeof e.data === 'string') {
-      let msg;
-      try { msg = JSON.parse(e.data); } catch(err){ msg = null; }
-      if (msg && msg.type === 'meta') {
-        incomingName = msg.name; incomingSize = msg.size; incomingBuffers = []; receivedBytes = 0;
-        $('recvStats').innerText = `Receiving ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
-        $('recvBar').style.width = '0%';
-        log('Receiving meta: ' + incomingName);
-      } else if (msg && msg.type === 'done') {
-        const blob = new Blob(incomingBuffers);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = incomingName; a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
-        a.style.display = 'block';
-        $('receiveFiles').prepend(a);
-        $('recvStats').innerText = 'Completed: ' + incomingName;
-        $('recvBar').style.width = '100%';
-        log('Receive completed: ' + incomingName);
-      } else {
-        // other control text messages
-        log('Control message: ' + e.data);
-      }
+    if (typeof e.data === 'string'){
+      try {
+        const m = JSON.parse(e.data);
+        if (m.type === 'meta'){
+          incomingName = m.name; incomingSize = m.size; incomingBuffers = []; receivedBytes = 0;
+          $('recvStats').innerText = `Receiving ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
+          $('recvBar').style.width = '0%';
+          log('Receiving meta: ' + incomingName);
+          return;
+        }
+        if (m.type === 'done'){
+          const blob = new Blob(incomingBuffers);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = incomingName;
+          a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`; a.style.display = 'block';
+          $('receiveFiles').prepend(a);
+          $('recvStats').innerText = `Completed ${incomingName}`;
+          $('recvBar').style.width = '100%';
+          log('Receive completed: ' + incomingName);
+          return;
+        }
+      } catch(err){ console.warn('ctrl parse', err); }
     } else {
       incomingBuffers.push(e.data);
       receivedBytes += e.data.byteLength;
@@ -276,7 +310,7 @@ function setupDataChannel(dc){
   };
 }
 
-/* ---------------- ROOM: CREATE ---------------- */
+/* ---------- ROOM: CREATE ---------- */
 $('createBtn').addEventListener('click', async () => {
   const id = $('roomId').value.trim();
   const pw = $('roomPassword').value || '';
@@ -290,7 +324,7 @@ $('createBtn').addEventListener('click', async () => {
     await ensureLocalStream();
     createPeerConnection();
 
-    // caller creates data channel
+    // create data channel (caller)
     const dc = pc.createDataChannel('fileChannel');
     setupDataChannel(dc);
 
@@ -304,70 +338,68 @@ $('createBtn').addEventListener('click', async () => {
     currentRoomRef = roomRef;
     roomId = id;
 
-    // write offer + pwhash
+    // write offer + pwHash
     try {
       await setDoc(roomRef, { offer: JSON.stringify(pc.localDescription), pwHash: h });
-    } catch(e) {
-      log('Firestore setDoc error: ' + e);
+    } catch(e){
+      log('Firestore write error: ' + e);
       setRoomMessage('Failed to create room (Firestore): ' + (e.message || e), false);
-      showToast('Create failed', '#fb7185');
+      showToast('Create room failed', 'error');
       $('createBtn').disabled = false;
       return;
     }
 
     setRoomMessage('Room Created Successfully! Room ID: ' + id, true);
     updateShareUI(id);
-    showToast('Room created', '#22c55e');
+    showToast('Room created');
     log('Room created: ' + id);
 
-    // Listen for answer and for remote ICE; buffer remote ICE until remoteDescription set
+    // watch room for answer
     onSnapshot(roomRef, async snap => {
       const data = snap.data();
       if (!data) return;
-      if (data.answer && pc && !pc.currentRemoteDescription) {
+      if (data.answer && pc && (!pc.currentRemoteDescription)) {
         try {
           await pc.setRemoteDescription(JSON.parse(data.answer));
           log('Remote answer set');
-          // drain buffered remote candidates now
+          // drain buffered candidates
           for (const c of bufferedRemoteCandidates) {
-            try { await pc.addIceCandidate(new RTCIceCandidate(c)); log('Buffered remote ICE added'); }
-            catch(err) { log('Failed adding buffered ICE: ' + err); }
+            try { await pc.addIceCandidate(new RTCIceCandidate(c)); log('Buffered remote ICE added'); } catch(e){ log('Buffered ICE add error: ' + e); }
           }
           bufferedRemoteCandidates = [];
-        } catch(err) { log('setRemoteDescription error: ' + err); }
+        } catch(err){ log('setRemoteDescription(answer) error: ' + err); }
       }
     });
 
-    // listen for remote ICE candidates subcollection
+    // listen for remote candidates and buffer/add appropriately
     onSnapshot(collection(roomRef, 'candidates'), snap => {
       snap.docChanges().forEach(async change => {
         if (change.type === 'added') {
           const obj = change.doc.data();
           if (obj && obj.candidate) {
             const cand = JSON.parse(obj.candidate);
-            if (!pc || !pc.remoteDescription) {
-              // buffer it
+            if (!pc.remoteDescription) {
               bufferedRemoteCandidates.push(cand);
-              log('Buffered remote candidate (remoteDescription not set yet)');
+              log('Buffered candidate until remoteDescription set');
             } else {
               try { await pc.addIceCandidate(new RTCIceCandidate(cand)); log('Remote ICE added'); }
-              catch(err) { log('addIceCandidate error: ' + err); }
+              catch(e){ log('addIceCandidate error: ' + e); }
             }
           }
         }
       });
     });
 
-  } catch(e) {
-    log('Create room error: ' + e);
-    setRoomMessage('Create room failed: ' + (e.message || e), false);
-    showToast('Create failed', '#fb7185');
+  } catch(e){
+    log('Create error: ' + e);
+    setRoomMessage('Create failed: ' + (e.message || e), false);
+    showToast('Create failed', 'error');
   } finally {
     $('createBtn').disabled = false;
   }
 });
 
-/* ---------------- ROOM: JOIN ---------------- */
+/* ---------- ROOM: JOIN ---------- */
 $('joinBtn').addEventListener('click', async () => {
   const id = $('roomId').value.trim();
   const pw = $('roomPassword').value || '';
@@ -388,7 +420,7 @@ $('joinBtn').addEventListener('click', async () => {
     let snap;
     try {
       snap = await getDoc(roomRef);
-    } catch(e) {
+    } catch(e){
       log('Firestore getDoc error: ' + e);
       setRoomMessage('Failed to read room (Firestore): ' + (e.message || e), false);
       $('joinBtn').disabled = false;
@@ -400,7 +432,6 @@ $('joinBtn').addEventListener('click', async () => {
       $('joinBtn').disabled = false;
       return;
     }
-
     const data = snap.data();
     if (!data.pwHash) { setRoomMessage('Room has no password', false); $('joinBtn').disabled = false; return; }
     const h = await sha256hex(pw);
@@ -409,18 +440,14 @@ $('joinBtn').addEventListener('click', async () => {
 
     createPeerConnection();
 
-    // when caller's data channel created, we'll receive it here
-    pc.ondatachannel = ev => {
-      log('DataChannel received at joiner');
-      setupDataChannel(ev.channel);
-    };
+    // when caller created data channel, joiner will receive it in pc.ondatachannel which calls setupDataChannel
 
     // set remote offer
     try {
       await pc.setRemoteDescription(JSON.parse(data.offer));
       log('Remote offer set');
-    } catch(err) {
-      log('setRemoteDescription (offer) error: ' + err);
+    } catch(err){
+      log('setRemoteDescription(offer) error: ' + err);
       setRoomMessage('Failed to set remote offer: ' + (err.message || err), false);
       $('joinBtn').disabled = false;
       return;
@@ -431,8 +458,8 @@ $('joinBtn').addEventListener('click', async () => {
 
     try {
       await setDoc(roomRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
-    } catch(e) {
-      log('Failed to write answer: ' + e);
+    } catch(e){
+      log('Failed writing answer: ' + e);
       setRoomMessage('Failed to post answer (Firestore): ' + (e.message || e), false);
       $('joinBtn').disabled = false;
       return;
@@ -440,10 +467,10 @@ $('joinBtn').addEventListener('click', async () => {
 
     setRoomMessage('Joined Room Successfully: ' + id, true);
     updateShareUI(id);
-    showToast('Joined room', '#22c55e');
+    showToast('Joined room');
     log('Joined room & posted answer');
 
-    // Listen for remote candidates and add; if remoteDescription not set yet, buffer
+    // listen for remote ICE candidates
     onSnapshot(collection(roomRef, 'candidates'), snap2 => {
       snap2.docChanges().forEach(async change => {
         if (change.type === 'added') {
@@ -455,75 +482,50 @@ $('joinBtn').addEventListener('click', async () => {
               log('Buffered remote candidate at joiner');
             } else {
               try { await pc.addIceCandidate(new RTCIceCandidate(cand)); log('Remote ICE added at joiner'); }
-              catch(err) { log('addIceCandidate error at joiner: ' + err); }
+              catch(e) { log('addIceCandidate error at joiner: ' + e); }
             }
           }
         }
       });
     });
 
-  } catch(e) {
-    log('Join failed: ' + e);
+  } catch(e){
+    log('Join error: ' + e);
     setRoomMessage('Join failed: ' + (e.message || e), false);
-    showToast('Join failed', '#fb7185');
+    showToast('Join failed', 'error');
   } finally {
     $('joinBtn').disabled = false;
   }
 });
 
-/* ---------------- FILE QUEUE UI ---------------- */
+/* ---------- FILE QUEUE UI ---------- */
 $('fileInput').addEventListener('change', e => {
   const files = Array.from(e.target.files || []);
-  for (const f of files) sendQueue.push(f);
+  for (const f of files) sendQueue.push({ file: f, transcode: true });
   renderQueue();
 });
+
 function renderQueue(){
   const list = $('fileList'); list.innerHTML = '';
-  sendQueue.forEach((f,i) => {
-    const el = document.createElement('div');
-    el.style.display='flex'; el.style.justifyContent='space-between'; el.style.alignItems='center'; el.style.marginTop='8px';
-    el.innerHTML = `<div><strong>${f.name}</strong><div class="small">${(f.size/1024/1024).toFixed(2)} MB</div></div>
-      <div><button data-i="${i}" class="ghost removeBtn">Delete</button></div>`;
-    list.appendChild(el);
+  sendQueue.forEach((it, idx) => {
+    const f = it.file;
+    const div = document.createElement('div'); div.className = 'fileRow';
+    div.innerHTML = `<div style="flex:1"><strong>${f.name}</strong><br><small class="small">${(f.size/1024/1024).toFixed(2)} MB</small></div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <label class="small">Transcode <input type="checkbox" data-idx="${idx}" class="tc" ${it.transcode ? 'checked' : ''}></label>
+        <div><button data-idx="${idx}" class="ghost removeBtn">Delete</button></div>
+      </div>`;
+    list.appendChild(div);
   });
-  list.querySelectorAll('.removeBtn').forEach(b => b.addEventListener('click', () => { sendQueue.splice(parseInt(b.dataset.i),1); renderQueue(); }));
+  list.querySelectorAll('.removeBtn').forEach(b => b.addEventListener('click', e => {
+    const i = parseInt(b.getAttribute('data-idx')); sendQueue.splice(i,1); renderQueue();
+  }));
+  list.querySelectorAll('.tc').forEach(cb => cb.addEventListener('change', e => {
+    const i = parseInt(cb.getAttribute('data-idx')); sendQueue[i].transcode = cb.checked;
+  }));
 }
-$('clearQueueBtn').addEventListener('click', ()=>{ sendQueue=[]; renderQueue(); });
+$('clearQueueBtn').addEventListener('click', ()=>{ sendQueue = []; renderQueue(); });
 
-/* ---------------- SEND FILES (chunked) ---------------- */
-$('sendQueueBtn').addEventListener('click', async () => {
-  if (!dataChannel || dataChannel.readyState !== 'open') { showToast('DataChannel not open', '#fb7185'); return; }
-  if (sendQueue.length === 0) return showToast('No files in queue', '#fb7185');
-
-  $('sendQueueBtn').disabled = true;
-  try {
-    let total = sendQueue.reduce((s,f)=>s+f.size,0);
-    let sentSoFar = 0;
-    for (const file of sendQueue) {
-      // send meta
-      dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size }));
-      log('Sending: ' + file.name);
-      const reader = file.stream().getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        // slice large Uint8Array into CHUNK pieces
-        let offset = 0;
-        while (offset < value.byteLength) {
-          const end = Math.min(offset + CHUNK, value.byteLength);
-          const slice = value.subarray(offset, end);
-          // simple flow control: wait if bufferedAmount too high
-          while (dataChannel.bufferedAmount > CHUNK * 16) await new Promise(r=>setTimeout(r, 50));
-          dataChannel.send(slice);
-          sentSoFar += slice.byteLength;
-          const pct = total ? (sentSoFar / total * 100) : 0;
-          $('sendBar').style.width = pct + '%';
-          $('sendStats').innerText = `${(sentSoFar/1024/1024).toFixed(2)} MB / ${(total/1024/1024).toFixed(2)} MB`;
-          offset = end;
-        }
-      }
-      dataChannel.send(JSON.stringify({ type: 'done' }));
-      log('File send complete: ' + file.name);
-    }
-    showToast('All files sent', '#22c55e');
-  } catch(e) {
+/* ---------- ffmpeg.wasm (on demand) ---------- */
+let ffmpeg = null, ffmpegLoading = false;
+async fun

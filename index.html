@@ -3,432 +3,528 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>P2P Video + File Transfer</title>
+<title>P2P File Transfer — Transcode Enabled</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
 <style>
-  body { font-family: Arial, system-ui; max-width:920px; margin:18px auto; padding:12px; color:#111; }
-  h1{font-size:18px}
-  .row{display:flex;gap:12px;flex-wrap:wrap}
-  .col{flex:1;min-width:260px}
-  .card{border:1px solid #ddd;padding:12px;border-radius:8px;background:#fff}
-  input,button,select{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
-  video{width:100%;height:240px;background:#000;border-radius:6px}
-  #status{margin-top:10px;font-weight:600}
-  .small{font-size:13px;color:#555}
-  progress{width:100%;height:14px}
-  a.btn{display:inline-block;padding:8px 12px;background:#06b6d4;color:#012; border-radius:6px;text-decoration:none}
-  @media(min-width:900px){ video{height:300px} }
+:root{
+  --bg:#0b1220; --card:#071022; --text:#e6eef6; --muted:#9aa9b8; --accent:#06b6d4;
+  --glass: rgba(255,255,255,0.03);
+  --success:#16a34a;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text);}
+.app{max-width:1100px;margin:18px auto;padding:18px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;font-size:20px}
+.small{font-size:13px;color:var(--muted)}
+.card{background:var(--card);padding:14px;border-radius:12px;margin-top:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:260px}
+.input,select,button{font-family:inherit}
+.input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+.btn{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#021018;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px}
+.video{width:100%;border-radius:8px;background:#000}
+.progress{height:12px;background:var(--glass);border-radius:999px;overflow:hidden}
+.progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
+.fileRow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+.fileRow small{color:var(--muted)}
+.qr{width:110px;height:110px;border-radius:8px;background:#071428;display:flex;align-items:center;justify-content:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#071026;padding:8px 12px;border-radius:8px;color:#fff;box-shadow:0 6px 30px rgba(2,6,23,0.5)}
+.light{--bg:#f7fafc;--card:#fff;--text:#0b1220;--muted:#475569;--accent:#0ea5a4}
+@media(max-width:820px){ .row{flex-direction:column} .header{flex-direction:column;align-items:flex-start} }
 </style>
 </head>
-<body>
-  <h1>P2P Video + File Transfer</h1>
-
-  <div class="card">
-    <div class="small">Instructions:</div>
-    <ol class="small">
-      <li>Enter the same Room ID on both devices (phone A creates, phone B joins).</li>
-      <li>Click <strong>Create Room</strong> on the first device — you'll see a success message.</li>
-      <li>On the second device enter same ID and click <strong>Join Room</strong>.</li>
-      <li>Allow camera & mic when prompted. After connected, you can send a file.</li>
-    </ol>
+<body class="dark">
+<div class="app">
+  <div class="header">
+    <div>
+      <h1>P2P File Transfer — Transcode Mode</h1>
+      <div class="small">Client-side transcoding reduces sender upload (preserves resolution, lowers bitrate). Use passworded rooms & QR to share.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label class="small" style="margin-right:8px">Theme</label>
+      <button id="themeToggle" class="ghost">Toggle</button>
+    </div>
   </div>
 
-  <div style="height:12px"></div>
-
-  <div class="card row">
-    <div class="col">
-      <label class="small">Room ID</label>
-      <input id="roomId" placeholder="e.g. 1234 or myroom1">
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button id="createBtn">Create Room</button>
-        <button id="joinBtn">Join Room</button>
+  <!-- ROOM -->
+  <div class="card">
+    <div class="row">
+      <div class="col">
+        <label class="small">Room ID</label>
+        <input id="roomId" class="input" placeholder="room-id (must match on both devices)">
       </div>
-      <div id="createMsg" style="margin-top:10px;color:green;font-weight:700"></div>
-      <div id="status" class="small"></div>
+      <div style="width:220px">
+        <label class="small">Room Password</label>
+        <input id="roomPassword" class="input" placeholder="required for this app">
+      </div>
+      <div style="width:200px;display:flex;flex-direction:column;gap:8px">
+        <button id="createBtn" class="btn">Create Room</button>
+        <button id="joinBtn" class="btn">Join Room</button>
+      </div>
+      <div style="width:140px;text-align:center">
+        <label class="small">Share</label>
+        <div id="qrWrap" class="qr" title="QR code link">QR</div>
+        <div style="margin-top:8px"><a id="shareLink" class="small" href="#" target="_blank">—</a></div>
+      </div>
+    </div>
+    <div style="margin-top:10px"><div id="roomMsg" class="small"></div></div>
+  </div>
+
+  <!-- Video & Controls -->
+  <div class="card row" style="align-items:flex-start">
+    <div class="col">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="muteAudio" class="ghost">Mute Audio</button>
+        <button id="muteVideo" class="ghost">Mute Video</button>
+        <button id="exitBtn" class="ghost">Exit Room</button>
+      </div>
+      <div style="margin-top:10px">
+        <label class="small">Local Video</label>
+        <video id="localVideo" class="video" autoplay playsinline muted></video>
+      </div>
+      <div style="margin-top:10px">
+        <label class="small">Remote Video</label>
+        <video id="remoteVideo" class="video" autoplay playsinline></video>
+      </div>
     </div>
 
+    <!-- File queue & options -->
     <div class="col">
-      <label class="small">Local Video</label>
-      <video id="localVideo" autoplay playsinline muted></video>
-      <div style="height:8px"></div>
-      <label class="small">Remote Video</label>
-      <video id="remoteVideo" autoplay playsinline></video>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="small">Select files (multiple)</label>
+        <input id="fileInput" type="file" multiple style="margin-left:auto">
+      </div>
+
+      <div id="fileList" class="list" style="margin-top:10px"></div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="sendQueueBtn" class="btn">Send Queue</button>
+        <button id="clearQueueBtn" class="ghost">Clear Queue</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Transcode Options (per-file selected at queue)</div>
+        <label class="small">Target video bitrate (kbps)</label>
+        <input id="bitrateInput" type="number" class="input" value="1000" min="200" max="5000" />
+        <div class="small" style="margin-top:6px">Lower bitrate → smaller upload but lower quality. Keep resolution same.</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Send Progress</div>
+        <div class="progress" style="margin-top:8px"><i id="sendBar" style="width:0%"></i></div>
+        <div class="small" id="sendStats"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Receive Progress</div>
+        <div class="progress" style="margin-top:8px"><i id="recvBar" style="width:0%"></i></div>
+        <div class="small" id="recvStats"></div>
+        <div id="receiveFiles" style="margin-top:8px"></div>
+      </div>
     </div>
   </div>
 
-  <div style="height:12px"></div>
-
-  <div class="card row">
-    <div class="col">
-      <h3 style="margin:6px 0">Send File</h3>
-      <input type="file" id="fileInput">
-      <button id="sendBtn" disabled>Send File</button>
-      <div style="height:8px"></div>
-      <div class="small">Send Progress</div>
-      <progress id="sendProgress" value="0" max="100"></progress>
-      <div id="sendInfo" class="small"></div>
-    </div>
-
-    <div class="col">
-      <h3 style="margin:6px 0">Receive</h3>
-      <div class="small">Receive Progress</div>
-      <progress id="recvProgress" value="0" max="100"></progress>
-      <div id="recvInfo" class="small"></div>
-      <div id="downloadArea" style="margin-top:10px"></div>
-    </div>
+  <!-- Logs -->
+  <div class="card" style="margin-top:12px">
+    <div class="small">Logs & status</div>
+    <pre id="log" style="height:200px;overflow:auto;background:transparent;border:none;padding:6px"></pre>
   </div>
+</div>
 
-  <div style="height:12px"></div>
+<!-- Toast -->
+<div id="toast" class="toast" style="display:none"></div>
 
-  <div class="card">
-    <div class="small">Debug / Logs</div>
-    <pre id="log" style="height:160px;overflow:auto;background:#fafafa;padding:8px;border-radius:6px"></pre>
-  </div>
-
-<!-- Firebase modular SDK (v10) -->
+<!-- Firebase modular SDK -->
 <script type="module">
-  // ----------------------------
-  // Firebase config (your config)
-  // ----------------------------
-  const firebaseConfig = {
-    apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
-    authDomain: "sending-file-90a27.firebaseapp.com",
-    projectId: "sending-file-90a27",
-    storageBucket: "sending-file-90a27.firebasestorage.app",
-    messagingSenderId: "319899445088",
-    appId: "1:319899445088:web:d33f39000428c54d212005",
-    measurementId: "G-512FV333QR"
+/* Single-file full app with ffmpeg.wasm transcoding and Firestore signaling */
+
+/* --------------------
+   1) FIREBASE CONFIG
+   -------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
+  authDomain: "sending-file-90a27.firebaseapp.com",
+  projectId: "sending-file-90a27",
+  storageBucket: "sending-file-90a27.firebasestorage.app",
+  messagingSenderId: "319899445088",
+  appId: "1:319899445088:web:d33f39000428c54d212005",
+  measurementId: "G-512FV333QR"
+};
+
+/* --------------------
+   2) IMPORTS
+   -------------------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* --------------------
+   3) UI ELEMENTS
+   -------------------- */
+const $ = id => document.getElementById(id);
+const createBtn = $('createBtn'), joinBtn = $('joinBtn'), roomIdInput = $('roomId'), roomPassword = $('roomPassword');
+const qrWrap = $('qrWrap'), shareLink = $('shareLink'), roomMsg = $('roomMsg');
+const muteAudioBtn = $('muteAudio'), muteVideoBtn = $('muteVideo'), exitBtn = $('exitBtn');
+const localVideo = $('localVideo'), remoteVideo = $('remoteVideo');
+const fileInput = $('fileInput'), fileList = $('fileList'), sendQueueBtn = $('sendQueueBtn'), clearQueueBtn = $('clearQueueBtn');
+const sendBar = $('sendBar'), recvBar = $('recvBar'), sendStats = $('sendStats'), recvStats = $('recvStats'), receiveFiles = $('receiveFiles');
+const logEl = $('log'), toast = $('toast'), themeToggle = $('themeToggle'), bitrateInput = $('bitrateInput');
+
+/* --------------------
+   4) STATE
+   -------------------- */
+let pc = null;
+let localStream = null;
+let dataChannel = null;
+let currentRoomRef = null;
+let roomId = null;
+let pwHashStored = null;
+
+let sendQueue = []; // {file:File, transcode:boolean, status:'queued'|'transcoding'|'ready'}
+let sending = false;
+const CHUNK = 64 * 1024; // 64KB
+
+/* --------------------
+   5) HELPERS
+   -------------------- */
+function log(msg){ const t=new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
+function showToast(msg, ms=2500){ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); }
+function updateShareUI(id){
+  const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id);
+  shareLink.textContent = link;
+  shareLink.href = link;
+  const qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=' + encodeURIComponent(link);
+  qrWrap.innerHTML = `<img src="${qrUrl}" width="110" height="110" style="border-radius:6px">`;
+}
+async function sha256hex(str){ const b=new TextEncoder().encode(str); const h=await crypto.subtle.digest('SHA-256', b); return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+/* --------------------
+   6) THEME TOGGLE
+   -------------------- */
+themeToggle.addEventListener('click', ()=>{
+  const body = document.body;
+  if (body.classList.contains('light')){ body.classList.remove('light'); body.classList.add('dark'); }
+  else { body.classList.remove('dark'); body.classList.add('light'); }
+});
+
+/* --------------------
+   7) MEDIA
+   -------------------- */
+async function ensureLocalStream(){
+  if (localStream) return localStream;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video:{ width:1280, height:720, frameRate:24 }, audio:true });
+    localVideo.srcObject = localStream;
+    log('Local stream started');
+    return localStream;
+  } catch(e){
+    log('getUserMedia error: ' + e);
+    alert('Please allow camera & microphone.');
+    throw e;
+  }
+}
+
+/* --------------------
+   8) PEER CONNECTION
+   -------------------- */
+function createPeerConnection(){
+  const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  pc = new RTCPeerConnection(config);
+
+  // add local tracks
+  if (localStream){
+    for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
+  }
+
+  pc.ontrack = ev => {
+    // first stream
+    remoteVideo.srcObject = ev.streams[0];
+    log('Remote track received');
   };
 
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import {
-    getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, deleteDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  // initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // UI
-  const roomIdInput = document.getElementById('roomId');
-  const createBtn = document.getElementById('createBtn');
-  const joinBtn   = document.getElementById('joinBtn');
-  const createMsg = document.getElementById('createMsg');
-  const statusEl  = document.getElementById('status');
-  const logEl     = document.getElementById('log');
-
-  const localVideo  = document.getElementById('localVideo');
-  const remoteVideo = document.getElementById('remoteVideo');
-
-  const fileInput = document.getElementById('fileInput');
-  const sendBtn = document.getElementById('sendBtn');
-  const sendProgress = document.getElementById('sendProgress');
-  const recvProgress = document.getElementById('recvProgress');
-  const sendInfo = document.getElementById('sendInfo');
-  const recvInfo = document.getElementById('recvInfo');
-  const downloadArea = document.getElementById('downloadArea');
-
-  // State
-  let pc;
-  let dataChannel;
-  let localStream;
-  let roomDocRef;
-  let roomId;
-  let candidatesListenerUnsub;
-  let roomSnapshotUnsub;
-
-  // File transfer parameters
-  const CHUNK = 64 * 1024; // 64KB per chunk
-  let sending = false;
-
-  // Helpers
-  function log(msg){
-    const t = new Date().toLocaleTimeString();
-    logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent;
-    statusEl.textContent = msg;
-  }
-
-  async function startLocalStream(){
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video:true });
-      localStream = s;
-      localVideo.srcObject = s;
-      log('Local stream started');
-    } catch(e){
-      log('getUserMedia error: ' + e);
-      alert('Please allow camera & microphone.');
+  pc.onicecandidate = e => {
+    if (e.candidate && currentRoomRef){
+      addDoc(collection(currentRoomRef, 'candidates'), { candidate: JSON.stringify(e.candidate) })
+        .catch(err => log('ICE push error: ' + err));
     }
-  }
+  };
 
-  // Create a new RTCPeerConnection and hook handlers
-  function createPeerConnection(){
-    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    pc = new RTCPeerConnection(config);
+  pc.onconnectionstatechange = () => log('PC state: ' + pc.connectionState);
 
-    // add local tracks
-    if (localStream){
-      for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
-    }
+  return pc;
+}
 
-    // when remote track arrives
-    pc.ontrack = (ev) => {
-      if (remoteVideo.srcObject !== ev.streams[0]) {
-        remoteVideo.srcObject = ev.streams[0];
-        log('Remote stream received');
-      }
-    };
+/* --------------------
+   9) DATACHANNEL
+   -------------------- */
+function setupDataChannel(channel){
+  dataChannel = channel;
+  dataChannel.binaryType = 'arraybuffer';
 
-    // ICE candidates generated locally -> push to firestore subcollection
-    pc.onicecandidate = async (event) => {
-      if (!event.candidate) return;
+  dataChannel.onopen = () => { log('DataChannel open'); showToast('DataChannel open'); };
+  dataChannel.onclose = () => { log('DataChannel closed'); showToast('DataChannel closed'); };
+
+  // receive file handling
+  let incomingBuffers = [];
+  let incomingSize = 0;
+  let incomingName = '';
+  let receivedBytes = 0;
+
+  dataChannel.onmessage = ev => {
+    if (typeof ev.data === 'string'){
       try {
-        await addDoc(collection(roomDocRef, 'candidates'), { candidate: JSON.stringify(event.candidate) });
-        log('Local ICE candidate pushed');
-      } catch(e){ log('ICE push error: ' + e); }
-    };
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'meta'){
+          incomingName = msg.name;
+          incomingSize = msg.size;
+          incomingBuffers = [];
+          receivedBytes = 0;
+          recvBar.style.width = '0%';
+          recvStats.textContent = `Receiving ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
+          log('Receiving meta: ' + incomingName);
+        } else if (msg.type === 'done'){
+          const blob = new Blob(incomingBuffers);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = incomingName; a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
+          a.style.display = 'block';
+          receiveFiles.prepend(a);
+          recvStats.textContent = `Received ${incomingName}`;
+          recvBar.style.width = '100%';
+          log('Receive complete: ' + incomingName);
+        }
+      } catch(err){ console.warn('bad ctrl msg', err); }
+    } else {
+      incomingBuffers.push(ev.data);
+      receivedBytes += ev.data.byteLength;
+      const pct = incomingSize ? (receivedBytes / incomingSize * 100) : 0;
+      recvBar.style.width = pct + '%';
+      recvStats.textContent = `${(receivedBytes/1024/1024).toFixed(2)} MB received`;
+    }
+  };
+}
 
-    pc.oniceconnectionstatechange = () => {
-      log('ICE state: ' + pc.iceConnectionState);
-    };
+/* --------------------
+   10) ROOM: CREATE
+   -------------------- */
+createBtn.addEventListener('click', async () => {
+  const id = roomIdInput.value.trim();
+  const pw = roomPassword.value || '';
+  if (!id) return alert('Enter room id');
+  if (!pw) return alert('Password required');
 
-    return pc;
-  }
-
-  function setupDataChannelEvents(dc){
-    dataChannel = dc;
-    dataChannel.binaryType = 'arraybuffer';
-
-    dataChannel.onopen = () => {
-      log('DataChannel open');
-      sendBtn.disabled = false;
-    };
-
-    dataChannel.onclose = () => {
-      log('DataChannel closed');
-      sendBtn.disabled = true;
-    };
-
-    // Receiving logic: collect chunks and assemble
-    let receivedBuffers = [];
-    let expectedSize = null;
-    let receivedBytes = 0;
-    let filename = 'downloaded_file';
-
-    dataChannel.onmessage = (ev) => {
-      // use small JSON control messages
-      if (typeof ev.data === 'string') {
-        try {
-          const ctrl = JSON.parse(ev.data);
-          if (ctrl.type === 'meta') {
-            filename = ctrl.name || filename;
-            expectedSize = ctrl.size || null;
-            receivedBuffers = [];
-            receivedBytes = 0;
-            recvProgress.max = expectedSize || 0;
-            recvInfo.textContent = `Receiving: ${filename}`;
-            downloadArea.innerHTML = '';
-            log('Receiving meta: ' + filename);
-          } else if (ctrl.type === 'done') {
-            // assemble
-            const blob = new Blob(receivedBuffers);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.textContent = 'Download ' + filename;
-            downloadArea.appendChild(a);
-            recvInfo.textContent = `Received ${filename}`;
-            recvProgress.value = recvProgress.max || recvProgress.value;
-            log('Receive complete');
-          }
-        } catch(e){ console.warn('Bad control message', e); }
-      } else {
-        receivedBuffers.push(ev.data);
-        receivedBytes += ev.data.byteLength;
-        if (recvProgress.max) recvProgress.value = receivedBytes;
-        recvInfo.textContent = `Receiving ${receivedBytes} bytes`;
-      }
-    };
-  }
-
-  // Create room (caller)
-  createBtn.addEventListener('click', async () => {
-    roomId = roomIdInput.value.trim();
-    if (!roomId) return alert('Enter Room ID');
-
-    createMsg.textContent = '';
-    log('Creating room: ' + roomId);
-
-    // prepare local stream
-    if (!localStream) await startLocalStream();
-
-    // create peer connection
+  createBtn.disabled = true;
+  try {
+    await ensureLocalStream();
     createPeerConnection();
 
-    // create data channel
+    // create data channel as caller
     const dc = pc.createDataChannel('file');
-    setupDataChannelEvents(dc);
+    setupDataChannel(dc);
 
-    // create offer
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // create firestore doc (room)
-    roomDocRef = doc(db, 'rooms', roomId);
-    try {
-      await setDoc(roomDocRef, { offer: JSON.stringify(pc.localDescription) });
-      createMsg.textContent = `Room Created Successfully! Room ID: ${roomId}`;
-      log('Room document written');
-    } catch(e){
-      log('Firestore write error: ' + e);
-      alert('Failed to create room in Firestore.');
-      return;
-    }
+    const h = await sha256hex(pw);
+    pwHashStored = h;
 
-    // listen for answer (one-time)
-    roomSnapshotUnsub = onSnapshot(roomDocRef, async (snap) => {
+    const roomRef = doc(db, 'rooms', id);
+    currentRoomRef = roomRef;
+    roomId = id;
+
+    await setDoc(roomRef, { offer: JSON.stringify(pc.localDescription), pwHash: h });
+
+    roomMsg.textContent = `Room Created Successfully! Room ID: ${id}`;
+    updateShareUI(id);
+    log('Room created: ' + id);
+
+    // listen for answer
+    onSnapshot(roomRef, async snap => {
       const data = snap.data();
       if (!data) return;
-      if (data.answer && pc && !pc.currentRemoteDescription) {
-        const answer = JSON.parse(data.answer);
-        await pc.setRemoteDescription(answer);
-        log('Answer received and set as remote description');
+      if (data.answer && pc && !pc.currentRemoteDescription){
+        await pc.setRemoteDescription(JSON.parse(data.answer));
+        log('Answer set');
       }
     });
 
-    // listen for remote ICE candidates
-    const candidatesCol = collection(roomDocRef, 'candidates');
-    candidatesListenerUnsub = onSnapshot(candidatesCol, async (snap) => {
-      for (const change of snap.docChanges()) {
-        if (change.type === 'added') {
-          const obj = change.doc.data();
-          if (obj && obj.candidate) {
-            try {
-              const cand = new RTCIceCandidate(JSON.parse(obj.candidate));
-              await pc.addIceCandidate(cand);
-              log('Remote ICE candidate added');
-            } catch(e){ console.warn('addIceCandidate error', e); }
-          }
+    // listen for candidate docs
+    onSnapshot(collection(roomRef, 'candidates'), snap => {
+      snap.docChanges().forEach(async change => {
+        if (change.type === 'added'){
+          try {
+            const obj = change.doc.data();
+            if (obj && obj.candidate) {
+              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
+              log('Remote ICE added');
+            }
+          } catch(e){ console.warn(e); }
         }
-      }
+      });
     });
-  });
 
-  // Join room (answerer)
-  joinBtn.addEventListener('click', async () => {
-    roomId = roomIdInput.value.trim();
-    if (!roomId) return alert('Enter Room ID');
+  } catch(e){ log('Create room error: '+e); alert('Create failed: '+e); }
+  finally { createBtn.disabled = false; }
+});
 
-    log('Joining room: ' + roomId);
+/* --------------------
+   11) ROOM: JOIN
+   -------------------- */
+joinBtn.addEventListener('click', async () => {
+  const id = roomIdInput.value.trim();
+  const pw = roomPassword.value || '';
+  if (!id) return alert('Enter room id');
+  if (!pw) return alert('Password required');
 
-    // prepare local stream
-    if (!localStream) await startLocalStream();
-
-    // get room doc
-    roomDocRef = doc(db, 'rooms', roomId);
-    const snap = await getDoc(roomDocRef);
+  joinBtn.disabled = true;
+  try {
+    await ensureLocalStream();
+    const roomRef = doc(db, 'rooms', id);
+    const snap = await getDoc(roomRef);
     if (!snap.exists()) { alert('Room not found'); return; }
     const data = snap.data();
-    if (!data.offer) { alert('Offer not found in room'); return; }
+    if (!data.pwHash) { alert('Room has no password'); return; }
+    const h = await sha256hex(pw);
+    if (h !== data.pwHash) { alert('Wrong password'); return; }
+    pwHashStored = h;
 
-    // create pc and set remote offer
+    currentRoomRef = roomRef; roomId = id;
     createPeerConnection();
 
-    // when datachannel offered by caller, we'll get it here:
-    pc.ondatachannel = (ev) => {
-      setupDataChannelEvents(ev.channel);
-    };
+    pc.ondatachannel = ev => { setupDataChannel(ev.channel); };
 
-    // set remote desc
-    const offer = JSON.parse(data.offer);
-    await pc.setRemoteDescription(offer);
-
-    // create answer
+    await pc.setRemoteDescription(JSON.parse(data.offer));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    // write answer back to room doc
-    await setDoc(roomDocRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
-    log('Answer set and written to Firestore');
+    await setDoc(roomRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
+    roomMsg.textContent = `Joined Room: ${id}`;
+    updateShareUI(id);
+    log('Joined room & answer posted');
 
-    // listen for remote ICE candidates
-    const candidatesCol = collection(roomDocRef, 'candidates');
-    candidatesListenerUnsub = onSnapshot(candidatesCol, async (snap2) => {
-      for (const change of snap2.docChanges()) {
-        if (change.type === 'added') {
-          const obj = change.doc.data();
-          if (obj && obj.candidate) {
-            try {
-              const cand = new RTCIceCandidate(JSON.parse(obj.candidate));
-              await pc.addIceCandidate(cand);
+    onSnapshot(collection(roomRef, 'candidates'), snap2 => {
+      snap2.docChanges().forEach(async change => {
+        if (change.type === 'added'){
+          try {
+            const obj = change.doc.data();
+            if (obj && obj.candidate) {
+              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
               log('Remote ICE candidate added');
-            } catch(e){ console.warn('addIceCandidate error', e); }
-          }
+            }
+          } catch(e){ console.warn(e); }
         }
-      }
+      });
     });
+
+  } catch(e){ log('Join error: '+e); alert('Join failed: '+e); }
+  finally { joinBtn.disabled = false; }
+});
+
+/* --------------------
+   12) FILE QUEUE UI
+   -------------------- */
+fileInput.addEventListener('change', (ev) => {
+  const files = Array.from(ev.target.files || []);
+  for (const f of files) sendQueue.push({ file: f, transcode: true, status: 'queued' });
+  renderQueue();
+});
+
+function renderQueue(){
+  fileList.innerHTML = '';
+  sendQueue.forEach((item, idx) => {
+    const f = item.file;
+    const el = document.createElement('div'); el.className = 'fileRow';
+    el.innerHTML = `
+      <div style="flex:1">
+        <strong>${f.name}</strong><br><small>${(f.size/1024/1024).toFixed(2)} MB</small>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <label class="small">Transcode
+          <input type="checkbox" data-idx="${idx}" class="tc" ${item.transcode ? 'checked' : ''}/>
+        </label>
+        <div>
+          <button data-idx="${idx}" class="ghost removeBtn">Delete</button>
+        </div>
+      </div>`;
+    fileList.appendChild(el);
   });
+  // handlers
+  fileList.querySelectorAll('.removeBtn').forEach(b => b.addEventListener('click', e=>{
+    const i = parseInt(b.getAttribute('data-idx')); sendQueue.splice(i,1); renderQueue();
+  }));
+  fileList.querySelectorAll('.tc').forEach(cb => cb.addEventListener('change', e=>{
+    const i = parseInt(cb.getAttribute('data-idx')); sendQueue[i].transcode = cb.checked;
+  }));
+}
 
-  // SEND FILE logic with chunking and flow control
-  sendBtn.addEventListener('click', async () => {
-    const file = fileInput.files[0];
-    if (!file) return alert('Select a file first');
-    if (!dataChannel || dataChannel.readyState !== 'open') return alert('DataChannel is not open yet');
+clearQueueBtn.addEventListener('click', ()=>{ sendQueue = []; renderQueue(); });
 
-    sendBtn.disabled = true;
-    sending = true;
-    sendInfo.textContent = `Sending ${file.name} (${Math.round(file.size/1024)} KB)`;
-    sendProgress.max = file.size;
-    sendProgress.value = 0;
-
-    // send metadata first
-    dataChannel.send(JSON.stringify({ type:'meta', name: file.name, size: file.size }));
-
-    const stream = file.stream();
-    const reader = stream.getReader();
-    let sentBytes = 0;
-
-    while(true){
-      if (!sending) break;
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      // break value into CHUNK segments if value larger than CHUNK
-      let offset = 0;
-      while (offset < value.byteLength) {
-        const end = Math.min(offset + CHUNK, value.byteLength);
-        const slice = value.subarray(offset, end);
-        // flow control: wait if bufferedAmount too large
-        while (dataChannel.bufferedAmount > CHUNK * 16) {
-          await new Promise(r => setTimeout(r, 50));
-        }
-        dataChannel.send(slice);
-        sentBytes += slice.byteLength;
-        sendProgress.value = sentBytes;
-        offset = end;
-      }
+/* --------------------
+   13) FFMPEG.WASM (load on demand)
+   -------------------- */
+let ffmpeg = null;
+let ffmpegLoading = false;
+async function ensureFFmpeg(){
+  if (ffmpeg) return ffmpeg;
+  if (ffmpegLoading) {
+    // wait until loaded
+    while(!ffmpeg) await new Promise(r=>setTimeout(r,200));
+    return ffmpeg;
+  }
+  ffmpegLoading = true;
+  log('Loading ffmpeg.wasm (this may take a few seconds)...');
+  // dynamic import from cdn
+  const { createFFmpeg, fetchFile } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js');
+  ffmpeg = createFFmpeg({ log: false });
+  ffmpeg.setProgress(p => {
+    if (p && p.ratio) {
+      const pct = Math.round(p.ratio * 100);
+      sendStats.textContent = `Transcoding: ${pct}%`;
     }
-
-    // done
-    dataChannel.send(JSON.stringify({ type:'done' }));
-    sendInfo.textContent = `Send complete: ${file.name}`;
-    sendBtn.disabled = false;
-    sending = false;
-    log('File send complete');
   });
+  await ffmpeg.load();
+  ffmpeg.fetchFile = fetchFile; // helper
+  log('ffmpeg.wasm loaded');
+  return ffmpeg;
+}
 
-  // Cleanup before unload
-  window.addEventListener('beforeunload', async () => {
-    try {
-      if (roomDocRef) {
-        // optional: delete room doc to clean up (only caller should do this ideally)
-        // await deleteDoc(roomDocRef);
-      }
-    } catch(e){ /* ignore */ }
-  });
+async function transcodeFileToMp4(file, targetKbps){
+  const f = await ensureFFmpeg();
+  const inName = 'in.' + (file.name.split('.').pop() || 'mp4');
+  const outName = 'out.mp4';
+  // write file
+  f.FS('writeFile', inName, await f.fetchFile(file));
+  // build args - keep original resolution, reduce bitrate
+  const args = [
+    '-i', inName,
+    '-c:v','libx264',
+    '-preset','veryfast',
+    '-b:v', `${targetKbps}k`,
+    '-maxrate', `${Math.round(targetKbps*1.2)}k`,
+    '-bufsize', `${Math.round(targetKbps*2)}k`,
+    '-c:a','aac',
+    '-b:a','96k',
+    '-movflags','+faststart',
+    outName
+  ];
+  log(`Starting transcode -> ${targetKbps} kbps`);
+  await f.run(...args);
+  const data = f.FS('readFile', outName);
+  const blob = new Blob([data.buffer], { type: 'video/mp4' });
+  // cleanup
+  try { f.FS('unlink', inName); } catch(e){}
+  try { f.FS('unlink', outName); } catch(e){}
+  log(`Transcode finished: ${ (blob.size/1024/1024).toFixed(2) } MB`);
+  return blob;
+}
 
-  // start by attempting to get local stream permissions early (optional)
-  (async ()=>{ try { await startLocalStream(); } catch(e){} })();
-
-</script>
-</body>
-</html>
+/* --------------------
+   14) SEND QUEUE (transcode then send)
+   -------------------- */
+sendQueueBtn.addEven

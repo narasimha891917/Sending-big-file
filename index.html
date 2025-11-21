@@ -1,35 +1,97 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>WebRTC File Sharing</title>
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    input, button { padding: 10px; margin: 10px 0; width: 100%; }
-    #progress { margin-top: 15px; font-weight: bold; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>P2P Video + File Transfer</title>
+<style>
+  body { font-family: Arial, system-ui; max-width:920px; margin:18px auto; padding:12px; color:#111; }
+  h1{font-size:18px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1;min-width:260px}
+  .card{border:1px solid #ddd;padding:12px;border-radius:8px;background:#fff}
+  input,button,select{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
+  video{width:100%;height:240px;background:#000;border-radius:6px}
+  #status{margin-top:10px;font-weight:600}
+  .small{font-size:13px;color:#555}
+  progress{width:100%;height:14px}
+  a.btn{display:inline-block;padding:8px 12px;background:#06b6d4;color:#012; border-radius:6px;text-decoration:none}
+  @media(min-width:900px){ video{height:300px} }
+</style>
 </head>
 <body>
+  <h1>P2P Video + File Transfer</h1>
 
-<h2>Peer-to-Peer File Sharing</h2>
+  <div class="card">
+    <div class="small">Instructions:</div>
+    <ol class="small">
+      <li>Enter the same Room ID on both devices (phone A creates, phone B joins).</li>
+      <li>Click <strong>Create Room</strong> on the first device — you'll see a success message.</li>
+      <li>On the second device enter same ID and click <strong>Join Room</strong>.</li>
+      <li>Allow camera & mic when prompted. After connected, you can send a file.</li>
+    </ol>
+  </div>
 
-<input id="roomInput" placeholder="Enter Room ID (example: 1234)" />
-<button id="createBtn">Create Room</button>
-<button id="joinBtn">Join Room</button>
+  <div style="height:12px"></div>
 
-<br><br>
+  <div class="card row">
+    <div class="col">
+      <label class="small">Room ID</label>
+      <input id="roomId" placeholder="e.g. 1234 or myroom1">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="createBtn">Create Room</button>
+        <button id="joinBtn">Join Room</button>
+      </div>
+      <div id="createMsg" style="margin-top:10px;color:green;font-weight:700"></div>
+      <div id="status" class="small"></div>
+    </div>
 
-<input type="file" id="fileInput" />
-<button id="sendBtn" disabled>Send File</button>
+    <div class="col">
+      <label class="small">Local Video</label>
+      <video id="localVideo" autoplay playsinline muted></video>
+      <div style="height:8px"></div>
+      <label class="small">Remote Video</label>
+      <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+  </div>
 
-<p id="progress"></p>
+  <div style="height:12px"></div>
 
+  <div class="card row">
+    <div class="col">
+      <h3 style="margin:6px 0">Send File</h3>
+      <input type="file" id="fileInput">
+      <button id="sendBtn" disabled>Send File</button>
+      <div style="height:8px"></div>
+      <div class="small">Send Progress</div>
+      <progress id="sendProgress" value="0" max="100"></progress>
+      <div id="sendInfo" class="small"></div>
+    </div>
+
+    <div class="col">
+      <h3 style="margin:6px 0">Receive</h3>
+      <div class="small">Receive Progress</div>
+      <progress id="recvProgress" value="0" max="100"></progress>
+      <div id="recvInfo" class="small"></div>
+      <div id="downloadArea" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div style="height:12px"></div>
+
+  <div class="card">
+    <div class="small">Debug / Logs</div>
+    <pre id="log" style="height:160px;overflow:auto;background:#fafafa;padding:8px;border-radius:6px"></pre>
+  </div>
+
+<!-- Firebase modular SDK (v10) -->
 <script type="module">
-  // ------------------ YOUR FIREBASE CONFIG ------------------
+  // ----------------------------
+  // Firebase config (your config)
+  // ----------------------------
   const firebaseConfig = {
     apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
     authDomain: "sending-file-90a27.firebaseapp.com",
-    databaseURL: "https://sending-file-90a27-default-rtdb.firebaseio.com",
     projectId: "sending-file-90a27",
     storageBucket: "sending-file-90a27.firebasestorage.app",
     messagingSenderId: "319899445088",
@@ -37,151 +99,336 @@
     measurementId: "G-512FV333QR"
   };
 
-  // ------------------ FIREBASE IMPORTS ------------------
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot } 
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+  // initialize Firebase
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ------------------ WEBRTC SETUP ------------------
-  let pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
+  // UI
+  const roomIdInput = document.getElementById('roomId');
+  const createBtn = document.getElementById('createBtn');
+  const joinBtn   = document.getElementById('joinBtn');
+  const createMsg = document.getElementById('createMsg');
+  const statusEl  = document.getElementById('status');
+  const logEl     = document.getElementById('log');
 
+  const localVideo  = document.getElementById('localVideo');
+  const remoteVideo = document.getElementById('remoteVideo');
+
+  const fileInput = document.getElementById('fileInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const sendProgress = document.getElementById('sendProgress');
+  const recvProgress = document.getElementById('recvProgress');
+  const sendInfo = document.getElementById('sendInfo');
+  const recvInfo = document.getElementById('recvInfo');
+  const downloadArea = document.getElementById('downloadArea');
+
+  // State
+  let pc;
   let dataChannel;
+  let localStream;
+  let roomDocRef;
   let roomId;
-  const createBtn = document.getElementById("createBtn");
-  const joinBtn = document.getElementById("joinBtn");
-  const sendBtn = document.getElementById("sendBtn");
-  const fileInput = document.getElementById("fileInput");
-  const progress = document.getElementById("progress");
+  let candidatesListenerUnsub;
+  let roomSnapshotUnsub;
 
-  // ---------------------------------------
-  // CREATE ROOM
-  // ---------------------------------------
-  createBtn.onclick = async () => {
-    roomId = document.getElementById("roomInput").value.trim();
-    if (!roomId) return alert("Enter room ID!");
+  // File transfer parameters
+  const CHUNK = 64 * 1024; // 64KB per chunk
+  let sending = false;
 
-    dataChannel = pc.createDataChannel("file");
-    setupDataChannel();
+  // Helpers
+  function log(msg){
+    const t = new Date().toLocaleTimeString();
+    logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent;
+    statusEl.textContent = msg;
+  }
 
+  async function startLocalStream(){
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video:true });
+      localStream = s;
+      localVideo.srcObject = s;
+      log('Local stream started');
+    } catch(e){
+      log('getUserMedia error: ' + e);
+      alert('Please allow camera & microphone.');
+    }
+  }
+
+  // Create a new RTCPeerConnection and hook handlers
+  function createPeerConnection(){
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    pc = new RTCPeerConnection(config);
+
+    // add local tracks
+    if (localStream){
+      for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
+    }
+
+    // when remote track arrives
+    pc.ontrack = (ev) => {
+      if (remoteVideo.srcObject !== ev.streams[0]) {
+        remoteVideo.srcObject = ev.streams[0];
+        log('Remote stream received');
+      }
+    };
+
+    // ICE candidates generated locally -> push to firestore subcollection
+    pc.onicecandidate = async (event) => {
+      if (!event.candidate) return;
+      try {
+        await addDoc(collection(roomDocRef, 'candidates'), { candidate: JSON.stringify(event.candidate) });
+        log('Local ICE candidate pushed');
+      } catch(e){ log('ICE push error: ' + e); }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      log('ICE state: ' + pc.iceConnectionState);
+    };
+
+    return pc;
+  }
+
+  function setupDataChannelEvents(dc){
+    dataChannel = dc;
+    dataChannel.binaryType = 'arraybuffer';
+
+    dataChannel.onopen = () => {
+      log('DataChannel open');
+      sendBtn.disabled = false;
+    };
+
+    dataChannel.onclose = () => {
+      log('DataChannel closed');
+      sendBtn.disabled = true;
+    };
+
+    // Receiving logic: collect chunks and assemble
+    let receivedBuffers = [];
+    let expectedSize = null;
+    let receivedBytes = 0;
+    let filename = 'downloaded_file';
+
+    dataChannel.onmessage = (ev) => {
+      // use small JSON control messages
+      if (typeof ev.data === 'string') {
+        try {
+          const ctrl = JSON.parse(ev.data);
+          if (ctrl.type === 'meta') {
+            filename = ctrl.name || filename;
+            expectedSize = ctrl.size || null;
+            receivedBuffers = [];
+            receivedBytes = 0;
+            recvProgress.max = expectedSize || 0;
+            recvInfo.textContent = `Receiving: ${filename}`;
+            downloadArea.innerHTML = '';
+            log('Receiving meta: ' + filename);
+          } else if (ctrl.type === 'done') {
+            // assemble
+            const blob = new Blob(receivedBuffers);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.textContent = 'Download ' + filename;
+            downloadArea.appendChild(a);
+            recvInfo.textContent = `Received ${filename}`;
+            recvProgress.value = recvProgress.max || recvProgress.value;
+            log('Receive complete');
+          }
+        } catch(e){ console.warn('Bad control message', e); }
+      } else {
+        receivedBuffers.push(ev.data);
+        receivedBytes += ev.data.byteLength;
+        if (recvProgress.max) recvProgress.value = receivedBytes;
+        recvInfo.textContent = `Receiving ${receivedBytes} bytes`;
+      }
+    };
+  }
+
+  // Create room (caller)
+  createBtn.addEventListener('click', async () => {
+    roomId = roomIdInput.value.trim();
+    if (!roomId) return alert('Enter Room ID');
+
+    createMsg.textContent = '';
+    log('Creating room: ' + roomId);
+
+    // prepare local stream
+    if (!localStream) await startLocalStream();
+
+    // create peer connection
+    createPeerConnection();
+
+    // create data channel
+    const dc = pc.createDataChannel('file');
+    setupDataChannelEvents(dc);
+
+    // create offer
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    await setDoc(doc(db, "rooms", roomId), {
-      offer: JSON.stringify(offer)
+    // create firestore doc (room)
+    roomDocRef = doc(db, 'rooms', roomId);
+    try {
+      await setDoc(roomDocRef, { offer: JSON.stringify(pc.localDescription) });
+      createMsg.textContent = `Room Created Successfully! Room ID: ${roomId}`;
+      log('Room document written');
+    } catch(e){
+      log('Firestore write error: ' + e);
+      alert('Failed to create room in Firestore.');
+      return;
+    }
+
+    // listen for answer (one-time)
+    roomSnapshotUnsub = onSnapshot(roomDocRef, async (snap) => {
+      const data = snap.data();
+      if (!data) return;
+      if (data.answer && pc && !pc.currentRemoteDescription) {
+        const answer = JSON.parse(data.answer);
+        await pc.setRemoteDescription(answer);
+        log('Answer received and set as remote description');
+      }
     });
 
-    listenForAnswer();
-    listenForCandidates();
-  };
+    // listen for remote ICE candidates
+    const candidatesCol = collection(roomDocRef, 'candidates');
+    candidatesListenerUnsub = onSnapshot(candidatesCol, async (snap) => {
+      for (const change of snap.docChanges()) {
+        if (change.type === 'added') {
+          const obj = change.doc.data();
+          if (obj && obj.candidate) {
+            try {
+              const cand = new RTCIceCandidate(JSON.parse(obj.candidate));
+              await pc.addIceCandidate(cand);
+              log('Remote ICE candidate added');
+            } catch(e){ console.warn('addIceCandidate error', e); }
+          }
+        }
+      }
+    });
+  });
 
-  // ---------------------------------------
-  // JOIN ROOM
-  // ---------------------------------------
-  joinBtn.onclick = async () => {
-    roomId = document.getElementById("roomInput").value.trim();
-    if (!roomId) return alert("Enter room ID!");
+  // Join room (answerer)
+  joinBtn.addEventListener('click', async () => {
+    roomId = roomIdInput.value.trim();
+    if (!roomId) return alert('Enter Room ID');
 
-    const roomRef = doc(db, "rooms", roomId);
-    const roomSnap = await getDoc(roomRef);
+    log('Joining room: ' + roomId);
 
-    if (!roomSnap.exists()) return alert("Room not found!");
+    // prepare local stream
+    if (!localStream) await startLocalStream();
 
-    const data = roomSnap.data();
-    const offer = JSON.parse(data.offer);
+    // get room doc
+    roomDocRef = doc(db, 'rooms', roomId);
+    const snap = await getDoc(roomDocRef);
+    if (!snap.exists()) { alert('Room not found'); return; }
+    const data = snap.data();
+    if (!data.offer) { alert('Offer not found in room'); return; }
 
-    pc.ondatachannel = (e) => {
-      dataChannel = e.channel;
-      setupDataChannel();
+    // create pc and set remote offer
+    createPeerConnection();
+
+    // when datachannel offered by caller, we'll get it here:
+    pc.ondatachannel = (ev) => {
+      setupDataChannelEvents(ev.channel);
     };
 
+    // set remote desc
+    const offer = JSON.parse(data.offer);
     await pc.setRemoteDescription(offer);
 
+    // create answer
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    await setDoc(roomRef, {
-      answer: JSON.stringify(answer)
-    }, { merge: true });
+    // write answer back to room doc
+    await setDoc(roomDocRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
+    log('Answer set and written to Firestore');
 
-    listenForCandidates();
-  };
-
-  // ---------------------------------------
-  // ICE Candidates Exchange
-  // ---------------------------------------
-  pc.onicecandidate = async (event) => {
-    if (event.candidate) {
-      await addDoc(collection(db, "rooms", roomId, "candidates"), {
-        candidate: JSON.stringify(event.candidate)
-      });
-    }
-  };
-
-  function listenForCandidates() {
-    const candidatesRef = collection(db, "rooms", roomId, "candidates");
-
-    onSnapshot(candidatesRef, (snap) => {
-      snap.docChanges().forEach(async (change) => {
-        if (change.type === "added") {
-          let data = change.doc.data();
-          let candidate = new RTCIceCandidate(JSON.parse(data.candidate));
-          await pc.addIceCandidate(candidate);
+    // listen for remote ICE candidates
+    const candidatesCol = collection(roomDocRef, 'candidates');
+    candidatesListenerUnsub = onSnapshot(candidatesCol, async (snap2) => {
+      for (const change of snap2.docChanges()) {
+        if (change.type === 'added') {
+          const obj = change.doc.data();
+          if (obj && obj.candidate) {
+            try {
+              const cand = new RTCIceCandidate(JSON.parse(obj.candidate));
+              await pc.addIceCandidate(cand);
+              log('Remote ICE candidate added');
+            } catch(e){ console.warn('addIceCandidate error', e); }
+          }
         }
-      });
-    });
-  }
-
-  function listenForAnswer() {
-    onSnapshot(doc(db, "rooms", roomId), async (snap) => {
-      const data = snap.data();
-      if (data.answer && !pc.currentRemoteDescription) {
-        await pc.setRemoteDescription(JSON.parse(data.answer));
       }
     });
-  }
+  });
 
-  // ---------------------------------------
-  // DATA CHANNEL FUNCTIONS
-  // ---------------------------------------
-  function setupDataChannel() {
-    dataChannel.onopen = () => {
-      sendBtn.disabled = false;
-      progress.innerText = "Connected ✔ You can send file now.";
-    };
-
-    dataChannel.onmessage = (event) => {
-      const blob = new Blob([event.data]);
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "received_file";
-      a.click();
-      progress.innerText = "File Received ✔";
-    };
-  }
-
-  // ---------------------------------------
-  // SEND FILE BUTTON
-  // ---------------------------------------
-  sendBtn.onclick = () => {
+  // SEND FILE logic with chunking and flow control
+  sendBtn.addEventListener('click', async () => {
     const file = fileInput.files[0];
-    if (!file) return alert("Select a file first!");
+    if (!file) return alert('Select a file first');
+    if (!dataChannel || dataChannel.readyState !== 'open') return alert('DataChannel is not open yet');
 
-    progress.innerText = "Sending...";
+    sendBtn.disabled = true;
+    sending = true;
+    sendInfo.textContent = `Sending ${file.name} (${Math.round(file.size/1024)} KB)`;
+    sendProgress.max = file.size;
+    sendProgress.value = 0;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      dataChannel.send(reader.result);
-      progress.innerText = "File Sent ✔";
-    };
-    reader.readAsArrayBuffer(file);
-  };
+    // send metadata first
+    dataChannel.send(JSON.stringify({ type:'meta', name: file.name, size: file.size }));
+
+    const stream = file.stream();
+    const reader = stream.getReader();
+    let sentBytes = 0;
+
+    while(true){
+      if (!sending) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // break value into CHUNK segments if value larger than CHUNK
+      let offset = 0;
+      while (offset < value.byteLength) {
+        const end = Math.min(offset + CHUNK, value.byteLength);
+        const slice = value.subarray(offset, end);
+        // flow control: wait if bufferedAmount too large
+        while (dataChannel.bufferedAmount > CHUNK * 16) {
+          await new Promise(r => setTimeout(r, 50));
+        }
+        dataChannel.send(slice);
+        sentBytes += slice.byteLength;
+        sendProgress.value = sentBytes;
+        offset = end;
+      }
+    }
+
+    // done
+    dataChannel.send(JSON.stringify({ type:'done' }));
+    sendInfo.textContent = `Send complete: ${file.name}`;
+    sendBtn.disabled = false;
+    sending = false;
+    log('File send complete');
+  });
+
+  // Cleanup before unload
+  window.addEventListener('beforeunload', async () => {
+    try {
+      if (roomDocRef) {
+        // optional: delete room doc to clean up (only caller should do this ideally)
+        // await deleteDoc(roomDocRef);
+      }
+    } catch(e){ /* ignore */ }
+  });
+
+  // start by attempting to get local stream permissions early (optional)
+  (async ()=>{ try { await startLocalStream(); } catch(e){} })();
+
 </script>
 </body>
 </html>

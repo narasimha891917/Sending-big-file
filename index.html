@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>P2P File Transfer (Single File)</title>
+<style>
+body { font-family: Arial; max-width: 600px; margin: 20px auto; }
+.box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+input, button { padding: 10px; margin-top: 10px; width: 100%; }
+progress { width: 100%; }
+</style>
+</head>
+<body>
+
+<h2>WebRTC P2P File Transfer</h2>
+
+<div class="box">
+    <h3>Step 1: Enter Room ID</h3>
+    <input id="room" placeholder="Room ID (same for both users)">
+    <button onclick="joinRoom()">Join Room</button>
+</div>
+
+<div class="box">
+    <h3>Send File</h3>
+    <input type="file" id="fileInput">
+    <button id="sendBtn" disabled onclick="sendFile()">Send File</button>
+    <progress id="sendProgress" value="0" max="100"></progress>
+    <div id="sendStatus"></div>
+</div>
+
+<div class="box">
+    <h3>Receive</h3>
+    <progress id="recvProgress" value="0" max="100"></progress>
+    <div id="recvStatus"></div>
+    <div id="download"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+// --------------------------------------------------
+// 1) FIREBASE CONFIG (ENTER YOUR OWN — REQUIRED)
+// --------------------------------------------------
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
+  authDomain: "sending-file-90a27.firebaseapp.com",
+  databaseURL: "https://sending-file-90a27-default-rtdb.firebaseio.com",
+  projectId: "sending-file-90a27",
+  storageBucket: "sending-file-90a27.firebasestorage.app",
+  messagingSenderId: "319899445088",
+  appId: "1:319899445088:web:d33f39000428c54d212005",
+  measurementId: "G-512FV333QR"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --------------------------------------------------
+// GLOBALS
+// --------------------------------------------------
+let pc;
+let dc;
+let roomRef;
+let isCaller = false;
+
+// STUN server
+const config = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+};
+
+// --------------------------------------------------
+// JOIN ROOM
+// --------------------------------------------------
+async function joinRoom() {
+    const roomId = document.getElementById("room").value.trim();
+    if (!roomId) return alert("Enter room");
+
+    roomRef = db.ref("rooms/" + roomId);
+    pc = new RTCPeerConnection(config);
+
+    // Data channel (caller only)
+    dc = pc.createDataChannel("fileChannel");
+    setupDataChannel(dc);
+
+    // ICE candidates
+    pc.onicecandidate = e => {
+        if (e.candidate) roomRef.push({ ice: e.candidate });
+    };
+
+    // When receiving offer (second person)
+    roomRef.on("child_added", async snapshot => {
+        const data = snapshot.val();
+
+        if (data.offer && !isCaller) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            roomRef.push({ answer });
+        }
+
+        if (data.answer && isCaller) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        }
+
+        if (data.ice) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(data.ice)); }
+            catch(e) {}
+        }
+    });
+
+    // Caller creates offer
+    isCaller = true;
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    roomRef.push({ offer });
+
+    document.getElementById("sendBtn").disabled = false;
+}
+
+// --------------------------------------------------
+// DATA CHANNEL HANDLING
+// --------------------------------------------------
+function setupDataChannel(dc) {
+    dc.binaryType = "arraybuffer";
+
+    let received = [];
+    let fileSize = 0;
+    let fileName = "";
+
+    dc.onmessage = e => {
+        if (typeof e.data === "string") {
+            let msg = JSON.parse(e.data);
+            if (msg.type === "meta") {
+                fileName = msg.name;
+                fileSize = msg.size;
+                document.getElementById("recvProgress").max = fileSize;
+                document.getElementById("recvStatus").innerText = "Receiving: " + fileName;
+                received = [];
+            }
+            if (msg.type === "done") {
+                const blob = new Blob(received);
+                const url = URL.createObjectURL(blob);
+                document.getElementById("download").innerHTML =
+                    `<a href="${url}" download="${fileName}">Download ${fileName}</a>`;
+                document.getElementById("recvStatus").innerText = "Completed!";
+            }
+        } else {
+            received.push(e.data);
+            let total = received.reduce((a, b) => a + b.byteLength, 0);
+            document.getElementById("recvProgress").value = total;
+        }
+    };
+
+    dc.onopen = () => console.log("DataChannel ready");
+}
+
+// --------------------------------------------------
+// SEND FILE
+// --------------------------------------------------
+async function sendFile() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) return alert("Select a file");
+
+    const chunkSize = 16000;
+    const reader = file.stream().getReader();
+    let sent = 0;
+
+    document.getElementById("sendProgress").max = file.size;
+
+    // Send metadata first
+    dc.send(JSON.stringify({ type: "meta", name: file.name, size: file.size }));
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        dc.send(value);
+        sent += value.length;
+        document.getElementById("sendProgress").value = sent;
+    }
+
+    dc.send(JSON.stringify({ type: "done" }));
+    document.getElementById("sendStatus").innerText = "Sent successfully";
+}
+</script>
+
+</body>
+</html>

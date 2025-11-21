@@ -1,15 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>P2P File Transfer — Transcode Enabled</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>P2P File Transfer — Full (Transcode)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
 <style>
 :root{
-  --bg:#0b1220; --card:#071022; --text:#e6eef6; --muted:#9aa9b8; --accent:#06b6d4;
-  --glass: rgba(255,255,255,0.03);
-  --success:#16a34a;
+  --bg:#0b1220; --card:#071022; --text:#e6eef6; --muted:#9aa9b8; --accent:#06b6d4; --glass:rgba(255,255,255,0.03);
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text);}
@@ -20,7 +18,6 @@ h1{margin:0;font-size:20px}
 .card{background:var(--card);padding:14px;border-radius:12px;margin-top:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
 .row{display:flex;gap:12px;flex-wrap:wrap}
 .col{flex:1;min-width:260px}
-.input,select,button{font-family:inherit}
 .input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
 .btn{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#021018;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
 .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px}
@@ -28,7 +25,6 @@ h1{margin:0;font-size:20px}
 .progress{height:12px;background:var(--glass);border-radius:999px;overflow:hidden}
 .progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
 .fileRow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
-.fileRow small{color:var(--muted)}
 .qr{width:110px;height:110px;border-radius:8px;background:#071428;display:flex;align-items:center;justify-content:center}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#071026;padding:8px 12px;border-radius:8px;color:#fff;box-shadow:0 6px 30px rgba(2,6,23,0.5)}
 .light{--bg:#f7fafc;--card:#fff;--text:#0b1220;--muted:#475569;--accent:#0ea5a4}
@@ -39,8 +35,8 @@ h1{margin:0;font-size:20px}
 <div class="app">
   <div class="header">
     <div>
-      <h1>P2P File Transfer — Transcode Mode</h1>
-      <div class="small">Client-side transcoding reduces sender upload (preserves resolution, lowers bitrate). Use passworded rooms & QR to share.</div>
+      <h1>P2P File Transfer — Transcode Enabled</h1>
+      <div class="small">Client-side transcoding reduces sender upload. Passworded rooms, QR, progress, mute, exit, dark mode.</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <label class="small" style="margin-right:8px">Theme</label>
@@ -57,7 +53,7 @@ h1{margin:0;font-size:20px}
       </div>
       <div style="width:220px">
         <label class="small">Room Password</label>
-        <input id="roomPassword" class="input" placeholder="required for this app">
+        <input id="roomPassword" class="input" placeholder="required">
       </div>
       <div style="width:200px;display:flex;flex-direction:column;gap:8px">
         <button id="createBtn" class="btn">Create Room</button>
@@ -69,10 +65,12 @@ h1{margin:0;font-size:20px}
         <div style="margin-top:8px"><a id="shareLink" class="small" href="#" target="_blank">—</a></div>
       </div>
     </div>
-    <div style="margin-top:10px"><div id="roomMsg" class="small"></div></div>
+    <div style="margin-top:10px">
+      <div id="roomMsg" class="small"></div>
+    </div>
   </div>
 
-  <!-- Video & Controls -->
+  <!-- Video & file UI -->
   <div class="card row" style="align-items:flex-start">
     <div class="col">
       <div style="display:flex;gap:8px;align-items:center">
@@ -90,7 +88,6 @@ h1{margin:0;font-size:20px}
       </div>
     </div>
 
-    <!-- File queue & options -->
     <div class="col">
       <div style="display:flex;gap:8px;align-items:center">
         <label class="small">Select files (multiple)</label>
@@ -105,10 +102,10 @@ h1{margin:0;font-size:20px}
       </div>
 
       <div style="margin-top:12px">
-        <div class="small">Transcode Options (per-file selected at queue)</div>
-        <label class="small">Target video bitrate (kbps)</label>
-        <input id="bitrateInput" type="number" class="input" value="1000" min="200" max="5000" />
-        <div class="small" style="margin-top:6px">Lower bitrate → smaller upload but lower quality. Keep resolution same.</div>
+        <div class="small">Transcode Options</div>
+        <label class="small">Target bitrate (kbps)</label>
+        <input id="bitrateInput" type="number" class="input" value="1200" min="200" max="5000" />
+        <div class="small" style="margin-top:6px">Lower bitrate → smaller upload but lower quality. Resolution preserved.</div>
       </div>
 
       <div style="margin-top:12px">
@@ -126,23 +123,24 @@ h1{margin:0;font-size:20px}
     </div>
   </div>
 
-  <!-- Logs -->
   <div class="card" style="margin-top:12px">
     <div class="small">Logs & status</div>
     <pre id="log" style="height:200px;overflow:auto;background:transparent;border:none;padding:6px"></pre>
   </div>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="toast" style="display:none"></div>
 
-<!-- Firebase modular SDK -->
+<!-- Module script: Firebase v10 + app logic -->
 <script type="module">
-/* Single-file full app with ffmpeg.wasm transcoding and Firestore signaling */
+/* ------------------------------
+   Full single-file app
+   - Firestore v10 (modular)
+   - Passworded rooms
+   - ffmpeg.wasm on-demand transcoding
+   ------------------------------ */
 
-/* --------------------
-   1) FIREBASE CONFIG
-   -------------------- */
+// ----- Your Firebase config (kept from you) -----
 const firebaseConfig = {
   apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
   authDomain: "sending-file-90a27.firebaseapp.com",
@@ -153,20 +151,17 @@ const firebaseConfig = {
   measurementId: "G-512FV333QR"
 };
 
-/* --------------------
-   2) IMPORTS
-   -------------------- */
+// ----- imports -----
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// initialize firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* --------------------
-   3) UI ELEMENTS
-   -------------------- */
+// UI refs
 const $ = id => document.getElementById(id);
 const createBtn = $('createBtn'), joinBtn = $('joinBtn'), roomIdInput = $('roomId'), roomPassword = $('roomPassword');
 const qrWrap = $('qrWrap'), shareLink = $('shareLink'), roomMsg = $('roomMsg');
@@ -176,101 +171,66 @@ const fileInput = $('fileInput'), fileList = $('fileList'), sendQueueBtn = $('se
 const sendBar = $('sendBar'), recvBar = $('recvBar'), sendStats = $('sendStats'), recvStats = $('recvStats'), receiveFiles = $('receiveFiles');
 const logEl = $('log'), toast = $('toast'), themeToggle = $('themeToggle'), bitrateInput = $('bitrateInput');
 
-/* --------------------
-   4) STATE
-   -------------------- */
+// state
 let pc = null;
 let localStream = null;
 let dataChannel = null;
 let currentRoomRef = null;
 let roomId = null;
 let pwHashStored = null;
-
-let sendQueue = []; // {file:File, transcode:boolean, status:'queued'|'transcoding'|'ready'}
+let sendQueue = []; // {file:File, transcode:boolean}
 let sending = false;
 const CHUNK = 64 * 1024; // 64KB
 
-/* --------------------
-   5) HELPERS
-   -------------------- */
-function log(msg){ const t=new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
+// helpers
+function log(msg){ const t = new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
 function showToast(msg, ms=2500){ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); }
-function updateShareUI(id){
-  const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id);
-  shareLink.textContent = link;
-  shareLink.href = link;
-  const qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=' + encodeURIComponent(link);
-  qrWrap.innerHTML = `<img src="${qrUrl}" width="110" height="110" style="border-radius:6px">`;
-}
-async function sha256hex(str){ const b=new TextEncoder().encode(str); const h=await crypto.subtle.digest('SHA-256', b); return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+async function sha256hex(str){ const b = new TextEncoder().encode(str); const h = await crypto.subtle.digest('SHA-256', b); return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+function updateShareUI(id){ const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id); shareLink.textContent = link; shareLink.href = link; const qrUrl = 'https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=' + encodeURIComponent(link); qrWrap.innerHTML = `<img src="${qrUrl}" width="110" height="110" style="border-radius:6px">`; }
 
-/* --------------------
-   6) THEME TOGGLE
-   -------------------- */
-themeToggle.addEventListener('click', ()=>{
-  const body = document.body;
-  if (body.classList.contains('light')){ body.classList.remove('light'); body.classList.add('dark'); }
-  else { body.classList.remove('dark'); body.classList.add('light'); }
+// theme toggle
+themeToggle.addEventListener('click', ()=> {
+  const b = document.body;
+  if (b.classList.contains('light')){ b.classList.remove('light'); b.classList.add('dark'); } else { b.classList.remove('dark'); b.classList.add('light'); }
 });
 
-/* --------------------
-   7) MEDIA
-   -------------------- */
+// media
 async function ensureLocalStream(){
   if (localStream) return localStream;
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video:{ width:1280, height:720, frameRate:24 }, audio:true });
+    localStream = await navigator.mediaDevices.getUserMedia({ video:{width:1280,height:720,frameRate:24}, audio:true });
     localVideo.srcObject = localStream;
     log('Local stream started');
     return localStream;
-  } catch(e){
-    log('getUserMedia error: ' + e);
-    alert('Please allow camera & microphone.');
-    throw e;
-  }
+  } catch(e){ log('getUserMedia error: '+e); alert('Camera & mic permission required'); throw e; }
 }
 
-/* --------------------
-   8) PEER CONNECTION
-   -------------------- */
+// peer connection
 function createPeerConnection(){
   const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
   pc = new RTCPeerConnection(config);
+  if (localStream) for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
 
-  // add local tracks
-  if (localStream){
-    for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
-  }
-
-  pc.ontrack = ev => {
-    // first stream
-    remoteVideo.srcObject = ev.streams[0];
-    log('Remote track received');
-  };
+  pc.ontrack = ev => { remoteVideo.srcObject = ev.streams[0]; log('Remote stream added'); };
 
   pc.onicecandidate = e => {
     if (e.candidate && currentRoomRef){
-      addDoc(collection(currentRoomRef, 'candidates'), { candidate: JSON.stringify(e.candidate) })
-        .catch(err => log('ICE push error: ' + err));
+      addDoc(collection(currentRoomRef, 'candidates'), { candidate: JSON.stringify(e.candidate) }).catch(err=>log('ICE push err:'+err));
     }
   };
 
-  pc.onconnectionstatechange = () => log('PC state: ' + pc.connectionState);
-
+  pc.onconnectionstatechange = ()=> log('PC state: ' + pc.connectionState);
   return pc;
 }
 
-/* --------------------
-   9) DATACHANNEL
-   -------------------- */
+// data channel setup
 function setupDataChannel(channel){
   dataChannel = channel;
   dataChannel.binaryType = 'arraybuffer';
+  dataChannel.onopen = ()=> { log('DataChannel open'); showToast('DataChannel open'); };
+  dataChannel.onclose = ()=> { log('DataChannel closed'); showToast('DataChannel closed'); };
 
-  dataChannel.onopen = () => { log('DataChannel open'); showToast('DataChannel open'); };
-  dataChannel.onclose = () => { log('DataChannel closed'); showToast('DataChannel closed'); };
-
-  // receive file handling
+  // receive logic
   let incomingBuffers = [];
   let incomingSize = 0;
   let incomingName = '';
@@ -279,27 +239,22 @@ function setupDataChannel(channel){
   dataChannel.onmessage = ev => {
     if (typeof ev.data === 'string'){
       try {
-        const msg = JSON.parse(ev.data);
-        if (msg.type === 'meta'){
-          incomingName = msg.name;
-          incomingSize = msg.size;
-          incomingBuffers = [];
-          receivedBytes = 0;
+        const control = JSON.parse(ev.data);
+        if (control.type === 'meta'){
+          incomingName = control.name; incomingSize = control.size; incomingBuffers = []; receivedBytes = 0;
           recvBar.style.width = '0%';
           recvStats.textContent = `Receiving ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
           log('Receiving meta: ' + incomingName);
-        } else if (msg.type === 'done'){
+        } else if (control.type === 'done'){
           const blob = new Blob(incomingBuffers);
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = incomingName; a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
-          a.style.display = 'block';
+          const a = document.createElement('a'); a.href = url; a.download = incomingName; a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`; a.style.display='block';
           receiveFiles.prepend(a);
           recvStats.textContent = `Received ${incomingName}`;
           recvBar.style.width = '100%';
           log('Receive complete: ' + incomingName);
         }
-      } catch(err){ console.warn('bad ctrl msg', err); }
+      } catch(e){ console.warn('bad ctrl', e); }
     } else {
       incomingBuffers.push(ev.data);
       receivedBytes += ev.data.byteLength;
@@ -310,39 +265,29 @@ function setupDataChannel(channel){
   };
 }
 
-/* --------------------
-   10) ROOM: CREATE
-   -------------------- */
-createBtn.addEventListener('click', async () => {
+// create room
+createBtn.addEventListener('click', async ()=>{
   const id = roomIdInput.value.trim();
   const pw = roomPassword.value || '';
-  if (!id) return alert('Enter room id');
-  if (!pw) return alert('Password required');
+  if (!id) { roomMsg.textContent = 'Enter Room ID'; roomMsg.style.color='orangered'; return; }
+  if (!pw) { roomMsg.textContent = 'Password required'; roomMsg.style.color='orangered'; return; }
 
   createBtn.disabled = true;
   try {
     await ensureLocalStream();
     createPeerConnection();
+    const dc = pc.createDataChannel('file'); setupDataChannel(dc);
 
-    // create data channel as caller
-    const dc = pc.createDataChannel('file');
-    setupDataChannel(dc);
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    const h = await sha256hex(pw);
-    pwHashStored = h;
+    const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+    const h = await sha256hex(pw); pwHashStored = h;
 
     const roomRef = doc(db, 'rooms', id);
-    currentRoomRef = roomRef;
-    roomId = id;
+    currentRoomRef = roomRef; roomId = id;
 
+    // write room (offer + pwHash)
     await setDoc(roomRef, { offer: JSON.stringify(pc.localDescription), pwHash: h });
-
-    roomMsg.textContent = `Room Created Successfully! Room ID: ${id}`;
-    updateShareUI(id);
-    log('Room created: ' + id);
+    roomMsg.textContent = `Room Created Successfully! Room ID: ${id}`; roomMsg.style.color='limegreen';
+    updateShareUI(id); log('Room created: ' + id);
 
     // listen for answer
     onSnapshot(roomRef, async snap => {
@@ -350,7 +295,7 @@ createBtn.addEventListener('click', async () => {
       if (!data) return;
       if (data.answer && pc && !pc.currentRemoteDescription){
         await pc.setRemoteDescription(JSON.parse(data.answer));
-        log('Answer set');
+        log('Answer received');
       }
     });
 
@@ -358,173 +303,132 @@ createBtn.addEventListener('click', async () => {
     onSnapshot(collection(roomRef, 'candidates'), snap => {
       snap.docChanges().forEach(async change => {
         if (change.type === 'added'){
-          try {
-            const obj = change.doc.data();
-            if (obj && obj.candidate) {
-              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
-              log('Remote ICE added');
-            }
-          } catch(e){ console.warn(e); }
+          const obj = change.doc.data();
+          if (obj && obj.candidate){
+            try { await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate))); log('Remote ICE added'); }
+            catch(e){ console.warn(e); }
+          }
         }
       });
     });
 
-  } catch(e){ log('Create room error: '+e); alert('Create failed: '+e); }
-  finally { createBtn.disabled = false; }
+  } catch(err){
+    log('Create room failed: ' + err);
+    roomMsg.textContent = 'Failed to create room: ' + (err.message || err); roomMsg.style.color='orangered';
+  } finally { createBtn.disabled = false; }
 });
 
-/* --------------------
-   11) ROOM: JOIN
-   -------------------- */
-joinBtn.addEventListener('click', async () => {
+// join room
+joinBtn.addEventListener('click', async ()=>{
   const id = roomIdInput.value.trim();
   const pw = roomPassword.value || '';
-  if (!id) return alert('Enter room id');
-  if (!pw) return alert('Password required');
+  if (!id) { roomMsg.textContent='Enter Room ID'; roomMsg.style.color='orangered'; return; }
+  if (!pw) { roomMsg.textContent='Password required'; roomMsg.style.color='orangered'; return; }
 
   joinBtn.disabled = true;
   try {
     await ensureLocalStream();
     const roomRef = doc(db, 'rooms', id);
     const snap = await getDoc(roomRef);
-    if (!snap.exists()) { alert('Room not found'); return; }
+    if (!snap.exists()) { roomMsg.textContent = 'Room not found'; roomMsg.style.color='orangered'; return; }
     const data = snap.data();
-    if (!data.pwHash) { alert('Room has no password'); return; }
+    if (!data.pwHash) { roomMsg.textContent='Room has no password'; roomMsg.style.color='orangered'; return; }
     const h = await sha256hex(pw);
-    if (h !== data.pwHash) { alert('Wrong password'); return; }
-    pwHashStored = h;
+    if (h !== data.pwHash) { roomMsg.textContent='Wrong password'; roomMsg.style.color='orangered'; return; }
 
-    currentRoomRef = roomRef; roomId = id;
+    currentRoomRef = roomRef; roomId = id; pwHashStored = h;
+
     createPeerConnection();
-
-    pc.ondatachannel = ev => { setupDataChannel(ev.channel); };
+    pc.ondatachannel = ev => setupDataChannel(ev.channel);
 
     await pc.setRemoteDescription(JSON.parse(data.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
 
     await setDoc(roomRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
-    roomMsg.textContent = `Joined Room: ${id}`;
-    updateShareUI(id);
-    log('Joined room & answer posted');
+    roomMsg.textContent = `Joined Room Successfully: ${id}`; roomMsg.style.color='limegreen';
+    updateShareUI(id); log('Joined room & posted answer');
 
     onSnapshot(collection(roomRef, 'candidates'), snap2 => {
       snap2.docChanges().forEach(async change => {
         if (change.type === 'added'){
-          try {
-            const obj = change.doc.data();
-            if (obj && obj.candidate) {
-              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
-              log('Remote ICE candidate added');
-            }
-          } catch(e){ console.warn(e); }
+          const obj = change.doc.data();
+          if (obj && obj.candidate){
+            try{ await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate))); log('Remote ICE added'); }
+            catch(e){ console.warn(e); }
+          }
         }
       });
     });
 
-  } catch(e){ log('Join error: '+e); alert('Join failed: '+e); }
-  finally { joinBtn.disabled = false; }
+  } catch(err){
+    log('Join failed: ' + err);
+    roomMsg.textContent = 'Failed to join: ' + (err.message || err); roomMsg.style.color='orangered';
+  } finally { joinBtn.disabled = false; }
 });
 
-/* --------------------
-   12) FILE QUEUE UI
-   -------------------- */
-fileInput.addEventListener('change', (ev) => {
+// mute/unmute & exit
+muteAudioBtn.addEventListener('click', ()=>{
+  if (!localStream) return alert('No local stream'); const t = localStream.getAudioTracks()[0]; t.enabled = !t.enabled; muteAudioBtn.textContent = t.enabled ? 'Mute Audio' : 'Unmute Audio'; log('Audio '+(t.enabled?'on':'off'));
+});
+muteVideoBtn.addEventListener('click', ()=>{
+  if (!localStream) return alert('No local stream'); const t = localStream.getVideoTracks()[0]; t.enabled = !t.enabled; muteVideoBtn.textContent = t.enabled ? 'Mute Video' : 'Unmute Video'; log('Video '+(t.enabled?'on':'off'));
+});
+exitBtn.addEventListener('click', ()=>{
+  if (pc) pc.close(); pc = null; if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; } roomMsg.textContent='Left room'; log('Left room');
+});
+
+// file queue UI
+fileInput.addEventListener('change', (ev)=>{
   const files = Array.from(ev.target.files || []);
-  for (const f of files) sendQueue.push({ file: f, transcode: true, status: 'queued' });
+  for (const f of files) sendQueue.push({ file: f, transcode: true });
   renderQueue();
 });
-
 function renderQueue(){
-  fileList.innerHTML = '';
-  sendQueue.forEach((item, idx) => {
-    const f = item.file;
-    const el = document.createElement('div'); el.className = 'fileRow';
-    el.innerHTML = `
-      <div style="flex:1">
-        <strong>${f.name}</strong><br><small>${(f.size/1024/1024).toFixed(2)} MB</small>
-      </div>
+  fileList.innerHTML=''; sendQueue.forEach((it,idx)=>{
+    const f=it.file;
+    const div=document.createElement('div'); div.className='fileRow';
+    div.innerHTML = `<div style="flex:1"><strong>${f.name}</strong><br><small class="small">${(f.size/1024/1024).toFixed(2)} MB</small></div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-        <label class="small">Transcode
-          <input type="checkbox" data-idx="${idx}" class="tc" ${item.transcode ? 'checked' : ''}/>
-        </label>
-        <div>
-          <button data-idx="${idx}" class="ghost removeBtn">Delete</button>
-        </div>
+        <label class="small">Transcode <input type="checkbox" data-idx="${idx}" class="tc" ${it.transcode?'checked':''}></label>
+        <div><button data-idx="${idx}" class="ghost removeBtn">Delete</button></div>
       </div>`;
-    fileList.appendChild(el);
+    fileList.appendChild(div);
   });
-  // handlers
-  fileList.querySelectorAll('.removeBtn').forEach(b => b.addEventListener('click', e=>{
-    const i = parseInt(b.getAttribute('data-idx')); sendQueue.splice(i,1); renderQueue();
-  }));
-  fileList.querySelectorAll('.tc').forEach(cb => cb.addEventListener('change', e=>{
-    const i = parseInt(cb.getAttribute('data-idx')); sendQueue[i].transcode = cb.checked;
-  }));
+  fileList.querySelectorAll('.removeBtn').forEach(b=>b.addEventListener('click', e=>{ const i=parseInt(b.getAttribute('data-idx')); sendQueue.splice(i,1); renderQueue(); }));
+  fileList.querySelectorAll('.tc').forEach(cb=>cb.addEventListener('change', e=>{ const i=parseInt(cb.getAttribute('data-idx')); sendQueue[i].transcode = cb.checked; }));
 }
+clearQueueBtn.addEventListener('click', ()=>{ sendQueue=[]; renderQueue(); });
 
-clearQueueBtn.addEventListener('click', ()=>{ sendQueue = []; renderQueue(); });
-
-/* --------------------
-   13) FFMPEG.WASM (load on demand)
-   -------------------- */
-let ffmpeg = null;
-let ffmpegLoading = false;
+// ffmpeg.wasm (load on demand)
+let ffmpeg = null, ffmpegLoading=false;
 async function ensureFFmpeg(){
   if (ffmpeg) return ffmpeg;
-  if (ffmpegLoading) {
-    // wait until loaded
-    while(!ffmpeg) await new Promise(r=>setTimeout(r,200));
-    return ffmpeg;
-  }
+  if (ffmpegLoading){ while(!ffmpeg) await new Promise(r=>setTimeout(r,200)); return ffmpeg; }
   ffmpegLoading = true;
-  log('Loading ffmpeg.wasm (this may take a few seconds)...');
-  // dynamic import from cdn
-  const { createFFmpeg, fetchFile } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js');
-  ffmpeg = createFFmpeg({ log: false });
-  ffmpeg.setProgress(p => {
-    if (p && p.ratio) {
-      const pct = Math.round(p.ratio * 100);
-      sendStats.textContent = `Transcoding: ${pct}%`;
-    }
-  });
+  log('Loading ffmpeg.wasm (may take a few seconds)...');
+  const { createFFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.2/dist/ffmpeg.min.js');
+  ffmpeg = createFFmpeg({ log:false });
+  ffmpeg.setProgress(p => { if (p && p.ratio !== undefined) { const pct=Math.round(p.ratio*100); sendStats.textContent = `Transcoding: ${pct}%`; } });
   await ffmpeg.load();
-  ffmpeg.fetchFile = fetchFile; // helper
   log('ffmpeg.wasm loaded');
   return ffmpeg;
 }
-
 async function transcodeFileToMp4(file, targetKbps){
   const f = await ensureFFmpeg();
   const inName = 'in.' + (file.name.split('.').pop() || 'mp4');
   const outName = 'out.mp4';
-  // write file
   f.FS('writeFile', inName, await f.fetchFile(file));
-  // build args - keep original resolution, reduce bitrate
-  const args = [
-    '-i', inName,
-    '-c:v','libx264',
-    '-preset','veryfast',
-    '-b:v', `${targetKbps}k`,
-    '-maxrate', `${Math.round(targetKbps*1.2)}k`,
-    '-bufsize', `${Math.round(targetKbps*2)}k`,
-    '-c:a','aac',
-    '-b:a','96k',
-    '-movflags','+faststart',
-    outName
-  ];
-  log(`Starting transcode -> ${targetKbps} kbps`);
+  const args = ['-i', inName, '-c:v','libx264','-preset','veryfast','-b:v',`${targetKbps}k`, '-maxrate',`${Math.round(targetKbps*1.2)}k`, '-bufsize',`${Math.round(targetKbps*2)}k`, '-c:a','aac','-b:a','96k','-movflags','+faststart', outName];
+  log(`Transcoding to ${targetKbps} kbps...`);
   await f.run(...args);
   const data = f.FS('readFile', outName);
   const blob = new Blob([data.buffer], { type: 'video/mp4' });
-  // cleanup
-  try { f.FS('unlink', inName); } catch(e){}
-  try { f.FS('unlink', outName); } catch(e){}
-  log(`Transcode finished: ${ (blob.size/1024/1024).toFixed(2) } MB`);
+  try { f.FS('unlink', inName); f.FS('unlink', outName); } catch(e){}
+  log('Transcode done: ' + (blob.size/1024/1024).toFixed(2) + ' MB');
   return blob;
 }
 
-/* --------------------
-   14) SEND QUEUE (transcode then send)
-   -------------------- */
-sendQueueBtn.addEven
+// send queue
+sendQueueBtn.addEventListener('click', async ()=>{
+  if (!dataChannel || dataChannel.readyState !== 'open'){ alert('DataChannel not open yet — wait for connection'); return; }
+  if (sendQueue.length===0

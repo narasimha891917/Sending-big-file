@@ -3,44 +3,35 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>P2P File Transfer — Debuggable</title>
+<title>P2P File Transfer — Fixed</title>
 <style>
-  body{font-family:Arial,system-ui;margin:0;padding:16px;background:#0b1220;color:#e6eef6}
-  .wrap{max-width:1100px;margin:0 auto}
-  .card{background:#071022;padding:14px;border-radius:10px;margin-bottom:12px}
-  input,button,select{font:inherit;padding:10px;border-radius:8px}
+  :root{--bg:#0b1220;--card:#071022;--text:#e6eef6;--muted:#9aa9b8;--accent:#06b6d4}
+  body{margin:0;font-family:Arial,system-ui;background:var(--bg);color:var(--text);padding:12px}
+  .app{max-width:1000px;margin:0 auto}
+  .card{background:var(--card);padding:14px;border-radius:10px;margin-bottom:12px}
+  input,button{font:inherit;padding:10px;border-radius:8px}
   input{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
   .row{display:flex;gap:12px;flex-wrap:wrap}
   .col{flex:1;min-width:220px}
-  .btn{background:#06b6d4;color:#021018;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
-  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#9aa9b8}
-  .small{font-size:13px;color:#9aa9b8}
-  pre{background:#071426;padding:10px;border-radius:8px;height:200px;overflow:auto}
+  .btn{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#021018;padding:10px 14px;border-radius:10px;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px}
+  .small{font-size:13px;color:var(--muted)}
+  pre{background:#071426;padding:10px;border-radius:8px;height:180px;overflow:auto}
   .success{color:#22c55e}
   .err{color:#fb7185}
   .progress{height:12px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
   .progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#06b6d4);width:0%}
-  .hidden{display:none}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h2>P2P File Transfer — Debug Friendly</h2>
-
-  <div class="card">
-    <div class="small">Quick check — verify Firestore connectivity</div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="testFs" class="btn">Test Firestore</button>
-      <button id="openConsole" class="ghost">Open Console Tip</button>
-    </div>
-    <div id="testMsg" style="margin-top:8px"></div>
-  </div>
+<div class="app">
+  <h2>P2P File Transfer — Fixed</h2>
 
   <div class="card">
     <div class="row">
       <div class="col">
         <label class="small">Room ID</label>
-        <input id="roomId" placeholder="room-id (same on both devices)">
+        <input id="roomId" placeholder="room-id (must match on both devices)">
       </div>
       <div style="width:220px">
         <label class="small">Password</label>
@@ -53,257 +44,315 @@
       <div style="width:160px;text-align:center">
         <div class="small">Share / QR</div>
         <div id="qr" style="margin-top:6px;background:#071428;border-radius:8px;padding:8px;width:120px;height:120px"></div>
-        <a id="shareLink" class="small" href="#" target="_blank" style="display:block;margin-top:6px;color:#06b6d4"></a>
+        <a id="shareLink" class="small" href="#" target="_blank" style="display:block;margin-top:6px;color:var(--accent)"></a>
       </div>
     </div>
     <div id="roomMsg" style="margin-top:10px"></div>
   </div>
 
-  <div class="card">
-    <div class="row" style="align-items:center">
-      <div class="col">
+  <div class="card row" style="align-items:flex-start">
+    <div class="col">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button id="muteAudio" class="ghost">Mute Audio</button>
+        <button id="muteVideo" class="ghost">Mute Video</button>
+        <button id="exitBtn" class="ghost">Exit Room</button>
+      </div>
+      <div>
         <div class="small">Local Video</div>
         <video id="localVideo" autoplay playsinline muted style="width:100%;height:220px;background:#000;border-radius:8px"></video>
       </div>
-      <div class="col">
+      <div style="margin-top:10px">
         <div class="small">Remote Video</div>
         <video id="remoteVideo" autoplay playsinline style="width:100%;height:220px;background:#000;border-radius:8px"></video>
       </div>
     </div>
 
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <button id="muteAudio" class="ghost">Mute Audio</button>
-      <button id="muteVideo" class="ghost">Mute Video</button>
-      <button id="exitBtn" class="ghost">Exit Room</button>
+    <div class="col">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="small">Select files (multiple)</label>
+        <input id="fileInput" type="file" multiple style="margin-left:auto">
+      </div>
+
+      <div id="fileList" style="margin-top:10px"></div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="sendQueueBtn" class="btn">Send Queue</button>
+        <button id="clearQueueBtn" class="ghost">Clear Queue</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Send Progress</div>
+        <div class="progress" style="margin-top:8px"><i id="sendBar" style="width:0%"></i></div>
+        <div class="small" id="sendStats"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Receive Progress</div>
+        <div class="progress" style="margin-top:8px"><i id="recvBar" style="width:0%"></i></div>
+        <div class="small" id="recvStats"></div>
+        <div id="receiveFiles" style="margin-top:8px"></div>
+      </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="small">Files (queue)</div>
-    <input id="fileInput" type="file" multiple style="margin-top:8px">
-    <div id="fileList" style="margin-top:8px"></div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="sendBtn" class="btn">Send Queue</button>
-      <button id="clearBtn" class="ghost">Clear Queue</button>
-    </div>
-
-    <div style="margin-top:12px">
-      <div class="small">Send Progress</div>
-      <div class="progress" style="margin-top:6px"><i id="sendBar" style="width:0%"></i></div>
-      <div id="sendTxt" class="small" style="margin-top:6px"></div>
-    </div>
-
-    <div style="margin-top:12px">
-      <div class="small">Receive Progress</div>
-      <div class="progress" style="margin-top:6px"><i id="recvBar" style="width:0%"></i></div>
-      <div id="recvTxt" class="small" style="margin-top:6px"></div>
-      <div id="downloads" style="margin-top:8px"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="small">Logs</div>
+    <div class="small">Logs & status</div>
     <pre id="log"></pre>
   </div>
 </div>
 
-<script type="module">
-/* ===========================
-   Debug-friendly single file
-   Firestore v10 modular, explicit errors & messages
-   =========================== */
+<!-- Toast container (used by showToast) -->
+<div id="toastContainer" style="position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9999"></div>
 
-/* ---------- Firebase v10 config (your config) ---------- */
+<!-- Firebase v10 + app code -->
+<script type="module">
+/* ---------------- FIREBASE CONFIG ---------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyB0Ex5-_mLf8KNENaK0ugRk7ow1fORUq2k",
   authDomain: "sending-file-90a27.firebaseapp.com",
   projectId: "sending-file-90a27",
   storageBucket: "sending-file-90a27.firebasestorage.app",
   messagingSenderId: "319899445088",
-  appId: "1:319899445088:web:d33f39000428d212005", // NOTE: keep your actual appId (I use yours earlier)
+  appId: "1:319899445088:web:d33f39000428d212005",
   measurementId: "G-512FV333QR"
 };
 
-/* ---------- imports ---------- */
+/* ---------------- IMPORTS ---------------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* ---------- initialize ---------- */
+/* ---------------- INIT FIREBASE ---------------- */
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* ---------- DOM refs ---------- */
+/* ---------------- UI HELPERS ---------------- */
 const $ = id => document.getElementById(id);
-const testFs = $('testFs'), openConsole = $('openConsole');
-const createBtn = $('createBtn'), joinBtn = $('joinBtn'), roomIdInput = $('roomId'), roomPassword = $('roomPassword');
-const roomMsg = $('roomMsg'), qr = $('qr'), shareLink = $('shareLink');
-const localVideo = $('localVideo'), remoteVideo = $('remoteVideo');
-const muteAudio = $('muteAudio'), muteVideo = $('muteVideo'), exitBtn = $('exitBtn');
-const fileInput = $('fileInput'), fileList = $('fileList'), sendBtn = $('sendBtn'), clearBtn = $('clearBtn');
-const sendBar = $('sendBar'), recvBar = $('recvBar'), sendTxt = $('sendTxt'), recvTxt = $('recvTxt'), downloads = $('downloads');
-const logEl = $('log'), testMsg = $('testMsg');
+const logEl = $('log');
+function log(msg){ const t=new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
 
-/* ---------- small UI helpers ---------- */
-function log(msg){ const t = new Date().toLocaleTimeString(); logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent; }
-function setRoomMessage(text, ok=true){ roomMsg.innerHTML = text; roomMsg.className = ok ? 'success' : 'err'; }
-function updateQRAndLink(id){ const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id); shareLink.href = link; shareLink.textContent = link; qr.innerHTML = `<img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(link)}" width="110" height="110"/>`; }
+/* showToast (fixed) */
+function showToast(message, color = '#22c55e') {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.textContent = message;
+  el.style.background = color;
+  el.style.color = '#fff';
+  el.style.padding = '10px 14px';
+  el.style.borderRadius = '8px';
+  el.style.marginTop = '8px';
+  el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.4)';
+  el.style.opacity = '0';
+  el.style.transition = 'opacity .25s';
+  container.appendChild(el);
+  requestAnimationFrame(()=> el.style.opacity = '1');
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
+}
 
-/* ---------- Firestore test (explicit error display) ---------- */
-testFs.addEventListener('click', async () => {
-  testFs.disabled = true;
-  testMsg.textContent = 'Testing Firestore...';
-  try {
-    // write a tiny doc and read it
-    const testRef = doc(db, 'test_connection', 'ping');
-    await setDoc(testRef, { ts: Date.now() });
-    const snap = await getDoc(testRef);
-    if (snap.exists()) {
-      testMsg.innerHTML = '<span style="color:limegreen">Firestore write/read OK</span>';
-      log('Firestore test OK');
-    } else {
-      testMsg.innerHTML = '<span style="color:orangered">Firestore read failed (no doc)</span>';
-      log('Firestore test: doc missing after write');
-    }
-  } catch(e) {
-    // show full error message so user can copy it
-    testMsg.innerHTML = `<span style="color:orangered">Firestore error: ${e && e.message ? e.message : e}</span>`;
-    log('Firestore test error: ' + (e && e.message ? e.message : e));
-  } finally {
-    testFs.disabled = false;
-  }
-});
+/* small UI text message */
+function setRoomMessage(text, ok = true){
+  const el = $('roomMsg');
+  el.textContent = text;
+  el.style.color = ok ? '#22c55e' : '#fb7185';
+}
 
-/* ---------- basic WebRTC + Firestore signaling (simplified) ---------- */
-let pc = null, dataChannel = null, localStream = null, roomRefGlobal = null;
-let sendQueue = []; // array of File
+/* update QR/link */
+function updateShareUI(id){
+  const link = location.href.split('#')[0] + '#room=' + encodeURIComponent(id);
+  $('shareLink').textContent = link; $('shareLink').href = link;
+  $('qr').innerHTML = `<img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(link)}" width="110" height="110" style="border-radius:6px">`;
+}
+
+/* ---------------- STATE ---------------- */
+let pc = null;
+let dataChannel = null;
+let localStream = null;
+let currentRoomRef = null;
+let roomId = null;
+let pwHashStored = null;
+let bufferedRemoteCandidates = []; // buffer ICE candidates until remoteDescription set
+
 const CHUNK = 64 * 1024;
+let sendQueue = [];
 
-/* get media */
-async function startLocal() {
+/* ---------------- SHA256 helper ---------------- */
+async function sha256hex(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---------------- MEDIA ---------------- */
+async function ensureLocalStream(){
   if (localStream) return localStream;
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-    localVideo.srcObject = localStream;
-    log('Local stream started');
+    localStream = await navigator.mediaDevices.getUserMedia({ video:{width:640,height:360,frameRate:15}, audio:true });
+    $('localVideo').srcObject = localStream;
+    log('Local media obtained');
     return localStream;
-  } catch(e) {
+  } catch(e){
     log('getUserMedia error: ' + e);
-    alert('Allow camera & mic');
+    showToast('Camera/mic permission required', '#fb7185');
     throw e;
   }
 }
 
-/* create peer */
-function createPC() {
-  pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
-  if (localStream) for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
-  pc.ontrack = e => {
-    remoteVideo.srcObject = e.streams[0];
-    log('Remote stream received');
+/* ---------------- PEER CONNECTION & DATACHANNEL ---------------- */
+function createPeerConnection(){
+  const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  pc = new RTCPeerConnection(config);
+
+  if (localStream) {
+    for (const t of localStream.getTracks()) pc.addTrack(t, localStream);
+  }
+
+  pc.ontrack = (ev) => {
+    $('remoteVideo').srcObject = ev.streams[0];
+    log('Remote track received');
   };
+
+  // when our PC has ICE candidate, push to Firestore
   pc.onicecandidate = e => {
-    if (e.candidate && roomRefGlobal) {
-      // push candidate to subcollection
-      addDoc(collection(roomRefGlobal, 'candidates'), { candidate: JSON.stringify(e.candidate) })
-        .catch(err => log('addDoc ICE error: ' + err));
+    if (e.candidate && currentRoomRef) {
+      addDoc(collection(currentRoomRef, 'candidates'), { candidate: JSON.stringify(e.candidate) })
+        .catch(err => log('Failed to push ICE candidate: ' + err));
     }
   };
-  pc.onconnectionstatechange = () => log('PC state: ' + pc.connectionState);
+
+  pc.onconnectionstatechange = () => log('Connection state: ' + pc.connectionState);
+
+  // when remote creates data channel (answerer gets it)
+  pc.ondatachannel = ev => {
+    log('ondatachannel received');
+    setupDataChannel(ev.channel);
+  };
+
   return pc;
 }
 
-/* data channel handlers */
-function attachDataChannel(dc) {
+function setupDataChannel(dc){
   dataChannel = dc;
   dataChannel.binaryType = 'arraybuffer';
-  dataChannel.onopen = () => log('DataChannel open');
-  dataChannel.onclose = () => log('DataChannel closed');
-  dataChannel.onmessage = ev => {
-    if (typeof ev.data === 'string') {
-      try {
-        const ctl = JSON.parse(ev.data);
-        if (ctl.type === 'meta') {
-          recvTxt.textContent = `Receiving ${ctl.name} (${(ctl.size/1024/1024).toFixed(2)} MB)`;
-          downloads.innerHTML = '';
-          recvBar.style.width = '0%';
-        } else if (ctl.type === 'done') {
-          log('Receiver: done control message');
-        }
-      } catch(e){ console.warn('ctrl parse err', e); }
+  dataChannel.onopen = () => { log('DataChannel open'); showToast('DataChannel open'); };
+  dataChannel.onclose = () => { log('DataChannel closed'); showToast('DataChannel closed', '#fb7185'); };
+
+  // receiving logic
+  let incomingBuffers = [];
+  let incomingSize = 0;
+  let incomingName = '';
+  let receivedBytes = 0;
+
+  dataChannel.onmessage = e => {
+    if (typeof e.data === 'string') {
+      let msg;
+      try { msg = JSON.parse(e.data); } catch(err){ msg = null; }
+      if (msg && msg.type === 'meta') {
+        incomingName = msg.name; incomingSize = msg.size; incomingBuffers = []; receivedBytes = 0;
+        $('recvStats').innerText = `Receiving ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
+        $('recvBar').style.width = '0%';
+        log('Receiving meta: ' + incomingName);
+      } else if (msg && msg.type === 'done') {
+        const blob = new Blob(incomingBuffers);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = incomingName; a.textContent = `Download ${incomingName} (${(incomingSize/1024/1024).toFixed(2)} MB)`;
+        a.style.display = 'block';
+        $('receiveFiles').prepend(a);
+        $('recvStats').innerText = 'Completed: ' + incomingName;
+        $('recvBar').style.width = '100%';
+        log('Receive completed: ' + incomingName);
+      } else {
+        // other control text messages
+        log('Control message: ' + e.data);
+      }
     } else {
-      // raw chunk receive: accumulate into a blob per transfer - for demo we simply create a downloadable blob directly
-      // Note: a production app should assemble chunks into buffers and provide a proper progress bar
-      const blob = new Blob([ev.data]);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'received_file'; a.textContent = 'Download received file'; a.style.display='block';
-      downloads.prepend(a);
-      recvBar.style.width = '100%';
-      recvTxt.textContent = 'Received chunk (saved as file)';
+      incomingBuffers.push(e.data);
+      receivedBytes += e.data.byteLength;
+      const pct = incomingSize ? (receivedBytes / incomingSize * 100) : 0;
+      $('recvBar').style.width = pct + '%';
+      $('recvStats').innerText = `${(receivedBytes/1024/1024).toFixed(2)} MB received`;
     }
   };
 }
 
-/* Create Room */
-createBtn.addEventListener('click', async () => {
-  const id = roomIdInput.value.trim();
-  const pw = roomPassword.value || '';
+/* ---------------- ROOM: CREATE ---------------- */
+$('createBtn').addEventListener('click', async () => {
+  const id = $('roomId').value.trim();
+  const pw = $('roomPassword').value || '';
   if (!id) { setRoomMessage('Enter Room ID', false); return; }
   if (!pw) { setRoomMessage('Password required', false); return; }
 
-  createBtn.disabled = true;
+  $('createBtn').disabled = true;
   setRoomMessage('Creating room...', true);
+
   try {
-    await startLocal();
-    createPC();
-    // caller creates dataChannel
-    const dc = pc.createDataChannel('file');
-    attachDataChannel(dc);
+    await ensureLocalStream();
+    createPeerConnection();
+
+    // caller creates data channel
+    const dc = pc.createDataChannel('fileChannel');
+    setupDataChannel(dc);
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // store in Firestore (offer + pwHash)
     const h = await sha256hex(pw);
+    pwHashStored = h;
+
     const roomRef = doc(db, 'rooms', id);
-    roomRefGlobal = roomRef;
+    currentRoomRef = roomRef;
+    roomId = id;
+
+    // write offer + pwhash
     try {
       await setDoc(roomRef, { offer: JSON.stringify(pc.localDescription), pwHash: h });
     } catch(e) {
-      // show clear error and return early
-      setRoomMessage('Failed to write room to Firestore: ' + (e.message || e), false);
-      log('setDoc error: ' + (e.message || e));
-      createBtn.disabled = false;
+      log('Firestore setDoc error: ' + e);
+      setRoomMessage('Failed to create room (Firestore): ' + (e.message || e), false);
+      showToast('Create failed', '#fb7185');
+      $('createBtn').disabled = false;
       return;
     }
 
     setRoomMessage('Room Created Successfully! Room ID: ' + id, true);
-    updateQRAndLink(id);
-    log('Room created and offer saved: ' + id);
+    updateShareUI(id);
+    showToast('Room created', '#22c55e');
+    log('Room created: ' + id);
 
-    // listen for answer updates
+    // Listen for answer and for remote ICE; buffer remote ICE until remoteDescription set
     onSnapshot(roomRef, async snap => {
       const data = snap.data();
       if (!data) return;
       if (data.answer && pc && !pc.currentRemoteDescription) {
         try {
           await pc.setRemoteDescription(JSON.parse(data.answer));
-          log('Answer set as remote description');
-        } catch(e) { log('setRemoteDescription error: ' + e); }
+          log('Remote answer set');
+          // drain buffered remote candidates now
+          for (const c of bufferedRemoteCandidates) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(c)); log('Buffered remote ICE added'); }
+            catch(err) { log('Failed adding buffered ICE: ' + err); }
+          }
+          bufferedRemoteCandidates = [];
+        } catch(err) { log('setRemoteDescription error: ' + err); }
       }
     });
 
-    // listen for ICE candidates from remote
+    // listen for remote ICE candidates subcollection
     onSnapshot(collection(roomRef, 'candidates'), snap => {
       snap.docChanges().forEach(async change => {
         if (change.type === 'added') {
           const obj = change.doc.data();
           if (obj && obj.candidate) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
-              log('Remote ICE candidate added');
-            } catch(e) { log('addIceCandidate error: ' + e); }
+            const cand = JSON.parse(obj.candidate);
+            if (!pc || !pc.remoteDescription) {
+              // buffer it
+              bufferedRemoteCandidates.push(cand);
+              log('Buffered remote candidate (remoteDescription not set yet)');
+            } else {
+              try { await pc.addIceCandidate(new RTCIceCandidate(cand)); log('Remote ICE added'); }
+              catch(err) { log('addIceCandidate error: ' + err); }
+            }
           }
         }
       });
@@ -312,80 +361,101 @@ createBtn.addEventListener('click', async () => {
   } catch(e) {
     log('Create room error: ' + e);
     setRoomMessage('Create room failed: ' + (e.message || e), false);
-  } finally { createBtn.disabled = false; }
+    showToast('Create failed', '#fb7185');
+  } finally {
+    $('createBtn').disabled = false;
+  }
 });
 
-/* Join Room */
-joinBtn.addEventListener('click', async () => {
-  const id = roomIdInput.value.trim();
-  const pw = roomPassword.value || '';
+/* ---------------- ROOM: JOIN ---------------- */
+$('joinBtn').addEventListener('click', async () => {
+  const id = $('roomId').value.trim();
+  const pw = $('roomPassword').value || '';
   if (!id) { setRoomMessage('Enter Room ID', false); return; }
   if (!pw) { setRoomMessage('Password required', false); return; }
 
-  joinBtn.disabled = true;
+  $('joinBtn').disabled = true;
   setRoomMessage('Joining room...', true);
-  try {
-    await startLocal();
-    const roomRef = doc(db, 'rooms', id);
-    roomRefGlobal = roomRef;
 
-    // fetch room doc
+  try {
+    await ensureLocalStream();
+
+    const roomRef = doc(db, 'rooms', id);
+    currentRoomRef = roomRef;
+    roomId = id;
+
+    // read room doc
     let snap;
     try {
       snap = await getDoc(roomRef);
     } catch(e) {
-      setRoomMessage('Failed to read room from Firestore: ' + (e.message || e), false);
-      log('getDoc error: ' + (e.message || e));
-      joinBtn.disabled = false;
+      log('Firestore getDoc error: ' + e);
+      setRoomMessage('Failed to read room (Firestore): ' + (e.message || e), false);
+      $('joinBtn').disabled = false;
       return;
     }
 
     if (!snap.exists()) {
       setRoomMessage('Room not found', false);
-      joinBtn.disabled = false;
+      $('joinBtn').disabled = false;
       return;
     }
+
     const data = snap.data();
-    if (!data.pwHash) { setRoomMessage('Room has no password', false); joinBtn.disabled=false; return; }
+    if (!data.pwHash) { setRoomMessage('Room has no password', false); $('joinBtn').disabled = false; return; }
     const h = await sha256hex(pw);
-    if (h !== data.pwHash) { setRoomMessage('Wrong password', false); joinBtn.disabled=false; return; }
+    if (h !== data.pwHash) { setRoomMessage('Wrong password', false); $('joinBtn').disabled = false; return; }
+    pwHashStored = h;
 
-    // set up PC & set remote offer
-    createPC();
-    pc.ondatachannel = ev => attachDataChannel(ev.channel);
+    createPeerConnection();
 
+    // when caller's data channel created, we'll receive it here
+    pc.ondatachannel = ev => {
+      log('DataChannel received at joiner');
+      setupDataChannel(ev.channel);
+    };
+
+    // set remote offer
     try {
       await pc.setRemoteDescription(JSON.parse(data.offer));
-    } catch(e) { setRoomMessage('setRemoteDescription failed: ' + (e.message || e), false); log('setRemoteDescription error: ' + e); joinBtn.disabled=false; return; }
+      log('Remote offer set');
+    } catch(err) {
+      log('setRemoteDescription (offer) error: ' + err);
+      setRoomMessage('Failed to set remote offer: ' + (err.message || err), false);
+      $('joinBtn').disabled = false;
+      return;
+    }
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    // write answer back to Firestore (merge)
     try {
       await setDoc(roomRef, { answer: JSON.stringify(pc.localDescription) }, { merge: true });
     } catch(e) {
-      setRoomMessage('Failed to write answer to Firestore: ' + (e.message || e), false);
-      log('setDoc answer error: ' + e);
-      joinBtn.disabled = false;
+      log('Failed to write answer: ' + e);
+      setRoomMessage('Failed to post answer (Firestore): ' + (e.message || e), false);
+      $('joinBtn').disabled = false;
       return;
     }
 
     setRoomMessage('Joined Room Successfully: ' + id, true);
-    updateQRAndLink(id);
-    log('Joined room and posted answer');
+    updateShareUI(id);
+    showToast('Joined room', '#22c55e');
+    log('Joined room & posted answer');
 
-    // listen for ICE candidates from caller
+    // Listen for remote candidates and add; if remoteDescription not set yet, buffer
     onSnapshot(collection(roomRef, 'candidates'), snap2 => {
       snap2.docChanges().forEach(async change => {
         if (change.type === 'added') {
           const obj = change.doc.data();
           if (obj && obj.candidate) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(obj.candidate)));
-              log('Remote ICE candidate added');
-            } catch(e) {
-              log('addIceCandidate error: ' + e);
+            const cand = JSON.parse(obj.candidate);
+            if (!pc.remoteDescription) {
+              bufferedRemoteCandidates.push(cand);
+              log('Buffered remote candidate at joiner');
+            } else {
+              try { await pc.addIceCandidate(new RTCIceCandidate(cand)); log('Remote ICE added at joiner'); }
+              catch(err) { log('addIceCandidate error at joiner: ' + err); }
             }
           }
         }
@@ -393,102 +463,67 @@ joinBtn.addEventListener('click', async () => {
     });
 
   } catch(e) {
-    log('Join error: ' + e);
+    log('Join failed: ' + e);
     setRoomMessage('Join failed: ' + (e.message || e), false);
-  } finally { joinBtn.disabled = false; }
+    showToast('Join failed', '#fb7185');
+  } finally {
+    $('joinBtn').disabled = false;
+  }
 });
 
-/* ---------- small utilities for files (queue & send) ---------- */
-fileInput.addEventListener('change', (ev) => {
-  const files = Array.from(ev.target.files || []);
-  sendQueue.push(...files);
-  renderFileList();
+/* ---------------- FILE QUEUE UI ---------------- */
+$('fileInput').addEventListener('change', e => {
+  const files = Array.from(e.target.files || []);
+  for (const f of files) sendQueue.push(f);
+  renderQueue();
 });
-function renderFileList(){
-  fileList.innerHTML = '';
-  sendQueue.forEach((f, i) => {
-    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.marginTop='8px';
-    div.innerHTML = `<div><strong>${f.name}</strong><div class="small">${(f.size/1024/1024).toFixed(2)} MB</div></div><div><button data-i="${i}" class="ghost remove">Delete</button></div>`;
-    fileList.appendChild(div);
+function renderQueue(){
+  const list = $('fileList'); list.innerHTML = '';
+  sendQueue.forEach((f,i) => {
+    const el = document.createElement('div');
+    el.style.display='flex'; el.style.justifyContent='space-between'; el.style.alignItems='center'; el.style.marginTop='8px';
+    el.innerHTML = `<div><strong>${f.name}</strong><div class="small">${(f.size/1024/1024).toFixed(2)} MB</div></div>
+      <div><button data-i="${i}" class="ghost removeBtn">Delete</button></div>`;
+    list.appendChild(el);
   });
-  fileList.querySelectorAll('.remove').forEach(b => b.addEventListener('click', e => { const i=parseInt(b.getAttribute('data-i')); sendQueue.splice(i,1); renderFileList(); }));
+  list.querySelectorAll('.removeBtn').forEach(b => b.addEventListener('click', () => { sendQueue.splice(parseInt(b.dataset.i),1); renderQueue(); }));
 }
-clearBtn.addEventListener('click', ()=>{ sendQueue=[]; renderFileList(); });
+$('clearQueueBtn').addEventListener('click', ()=>{ sendQueue=[]; renderQueue(); });
 
-/* Very simple send: sends raw files (no transcode) in chunks */
-sendBtn.addEventListener('click', async () => {
-  if (!dataChannel || dataChannel.readyState !== 'open') { alert('DataChannel not open yet'); return; }
-  if (sendQueue.length === 0) return alert('No files selected');
-  sendBtn.disabled = true;
-  let total = sendQueue.reduce((s,f)=>s+f.size,0), sent=0;
+/* ---------------- SEND FILES (chunked) ---------------- */
+$('sendQueueBtn').addEventListener('click', async () => {
+  if (!dataChannel || dataChannel.readyState !== 'open') { showToast('DataChannel not open', '#fb7185'); return; }
+  if (sendQueue.length === 0) return showToast('No files in queue', '#fb7185');
+
+  $('sendQueueBtn').disabled = true;
   try {
-    for (const f of sendQueue) {
+    let total = sendQueue.reduce((s,f)=>s+f.size,0);
+    let sentSoFar = 0;
+    for (const file of sendQueue) {
       // send meta
-      dataChannel.send(JSON.stringify({ type:'meta', name: f.name, size: f.size }));
-      log('Sending: ' + f.name);
-      const reader = f.stream().getReader();
-      while(true){
-        const {done, value} = await reader.read();
+      dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size }));
+      log('Sending: ' + file.name);
+      const reader = file.stream().getReader();
+      while (true) {
+        const { done, value } = await reader.read();
         if (done) break;
-        // chunking inside value may be large; we send in slices
+        // slice large Uint8Array into CHUNK pieces
         let offset = 0;
         while (offset < value.byteLength) {
           const end = Math.min(offset + CHUNK, value.byteLength);
           const slice = value.subarray(offset, end);
-          // flow control
-          while (dataChannel.bufferedAmount > CHUNK * 16) await new Promise(r=>setTimeout(r,50));
+          // simple flow control: wait if bufferedAmount too high
+          while (dataChannel.bufferedAmount > CHUNK * 16) await new Promise(r=>setTimeout(r, 50));
           dataChannel.send(slice);
-          sent += slice.byteLength;
-          sendBar.style.width = ((sent/total)*100) + '%';
-          sendTxt.textContent = `${(sent/1024/1024).toFixed(2)} MB / ${(total/1024/1024).toFixed(2)} MB`;
+          sentSoFar += slice.byteLength;
+          const pct = total ? (sentSoFar / total * 100) : 0;
+          $('sendBar').style.width = pct + '%';
+          $('sendStats').innerText = `${(sentSoFar/1024/1024).toFixed(2)} MB / ${(total/1024/1024).toFixed(2)} MB`;
           offset = end;
         }
       }
-      dataChannel.send(JSON.stringify({ type:'done' }));
-      log('Finished sending: ' + f.name);
+      dataChannel.send(JSON.stringify({ type: 'done' }));
+      log('File send complete: ' + file.name);
     }
-    showToast('All files sent', 3000);
+    showToast('All files sent', '#22c55e');
   } catch(e) {
-    log('Send failed: ' + e);
-    alert('Send failed: ' + e);
-  } finally {
-    sendBtn.disabled = false;
-  }
-});
-
-/* mute/video/exit handlers */
-muteAudio.addEventListener('click', ()=> {
-  if (!localStream) return alert('No local stream'); const t = localStream.getAudioTracks()[0]; t.enabled = !t.enabled; muteAudio.textContent = t.enabled ? 'Mute Audio' : 'Unmute Audio';
-});
-muteVideo.addEventListener('click', ()=> {
-  if (!localStream) return alert('No local stream'); const t = localStream.getVideoTracks()[0]; t.enabled = !t.enabled; muteVideo.textContent = t.enabled ? 'Mute Video' : 'Unmute Video';
-});
-exitBtn.addEventListener('click', ()=> {
-  if (pc) pc.close(); pc = null;
-  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
-  setRoomMessage('Left room', true);
-  log('Exited room & stopped local stream');
-});
-
-/* tiny helper: hash password (sha256 hex) */
-async function sha256hex(str){
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-/* convenience: open console instructions */
-openConsole.addEventListener('click', ()=> {
-  alert('On Android Chrome: Menu → More tools → Developer tools via remote debugging (chrome://inspect) or open on desktop and press F12 to see Console logs.');
-});
-
-/* attempt to pre-fill room id from URL fragment */
-(function loadRoomFromHash(){
-  const m = location.hash.match(/room=([^&]+)/);
-  if (m) roomIdInput.value = decodeURIComponent(m[1]);
-})();
-
-log('App initialized. Click "Test Firestore" to verify connectivity and rules.');
-</script>
-</body>
-</html>
